@@ -18,8 +18,8 @@ return [
     'db' => [
         'host' => 'localhost',
         'port' => 3306,
-        'name' => 'u543028936_araltrack2026',
-        'user' => 'u543028936_araltrack',
-        'pass' => 'Araltrack2026**',
+        'name' => 'u123456789_araltrack',
+        'user' => 'u123456789_araltrack',
+        'pass' => 'the database password',
     ],
 ];
