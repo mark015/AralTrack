@@ -158,7 +158,14 @@ On Hostinger (hPanel):
 7. Create the tables: over SSH, `cd public_html && php database/install.php` (prints the admin password). Without SSH, import a `.sql` file in **Databases → phpMyAdmin** (make it on your computer with `php database/install.php --db=araltrack_live` and export that database, or use a Setup → Backup file).
 8. Sign in as `admin`, change the password, and fill in **Setup → Settings**, including *Portal address for parents* (`https://yourdomain.com`).
 
-Updating later: deploy the new code (Git → Deploy, or upload the changed files), then run `php database/migrate.php` over SSH.
+**Automatic updates from GitHub** (every `git push` updates the website):
+1. In hPanel → **Advanced → Git**, add the repository (`https://github.com/<you>/<repo>.git`, branch `main`, folder `public_html` left empty in the "Directory" box) and press **Deploy** once. For a private repository, first add the SSH key hPanel shows there to GitHub → repository **Settings → Deploy keys**.
+2. In the same Git page, open **Auto Deployment** and copy the **webhook URL**.
+3. On GitHub: repository **Settings → Webhooks → Add webhook**. Paste the URL in *Payload URL*, keep *Just the push event*, and save. GitHub shows a green tick after the first delivery.
+
+After each push, Hostinger pulls the new code. Files that aren't in Git stay as they are on the server: `config/config.local.php`, `vendor/` and uploaded files in `storage/`. Database changes in the new code are applied on the first page load afterwards (`auto_migrate` in `config/config.php`; they only add tables and columns and keep all data). If an update changes `composer.json`, run `composer install --no-dev` again (or upload the new `vendor/`).
+
+Without automatic updates: deploy the new code (Git → Deploy, or upload the changed files); the database is updated on the next page load, or run `php database/migrate.php` over SSH.
 
 The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `database/` and `storage/` can't be opened from the browser. The portal sets each database connection to the portal's time zone (`Asia/Manila`), so times are right even when the hosting's MySQL runs on UTC.
 

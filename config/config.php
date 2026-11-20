@@ -9,6 +9,11 @@ return [
     'debug'       => true,                // show error details; set to false on the live server
     'timezone'    => 'Asia/Manila',
 
+    // true: after new code is deployed (e.g. automatically from GitHub), the first page load applies the
+    // new database changes. They only add tables and columns; data is kept. false: run
+    // "php database/migrate.php" yourself after each update.
+    'auto_migrate' => true,
+
     'db' => [
         'host' => '127.0.0.1',
         'port' => 3306,

@@ -58,25 +58,59 @@ if (is_post()) {
 
 Attendance::finishStaleSessions();
 
-/** Stops with a clear message when the database hasn't been updated for this version of the code. */
+/**
+ * Makes sure the database matches this version of the code. After new code arrives (for example an automatic
+ * deploy from GitHub), the first page load applies the new database changes (config 'auto_migrate', on by
+ * default). They only add tables and columns and keep all data. Otherwise stops with a clear message.
+ */
 function require_current_schema(): void
 {
     $files = migration_files();
     $latest = $files ? array_key_last($files) : null;
-    try {
-        $current = $latest === null ? null : db_value('SELECT MAX(version) FROM schema_migrations');
-    } catch (PDOException) {
-        $current = null; // table doesn't exist yet
-    }
-    if ($current === $latest) {
+    $current = static function (): ?string {
+        try {
+            return db_value('SELECT MAX(version) FROM schema_migrations');
+        } catch (PDOException) {
+            return null; // table doesn't exist yet
+        }
+    };
+    if ($latest === null || $current() === $latest) {
         return;
     }
+
+    $installed = (bool) db_value("SHOW TABLES LIKE 'users'");
+    $problem = null;
+    if (!$installed) {
+        $problem = ['The database is empty', 'Create the tables first. On the server, in the project folder, run:', 'php database/install.php'];
+    } elseif (config('auto_migrate') !== false) {
+        // One request applies the changes; others arriving at the same moment wait for it.
+        if ((int) db_value("SELECT GET_LOCK('portal_migrations', 60)") === 1) {
+            try {
+                if ($current() !== $latest) {
+                    $applied = run_migrations(db());
+                    error_log('Portal database updated: ' . implode(', ', $applied));
+                }
+                return;
+            } catch (Throwable $e) {
+                error_log('Portal database update failed: ' . $e);
+                $problem = ['The database update did not finish', 'The error is in the server error log. Fix it, then run in the project folder:', 'php database/migrate.php'];
+            } finally {
+                db_value("SELECT RELEASE_LOCK('portal_migrations')");
+            }
+        } else {
+            $problem = ['The portal is being updated', 'Please try again in a minute.', null];
+            header('Retry-After: 60');
+        }
+    } else {
+        $problem = ['The database needs an update', 'On the server, open a terminal in the project folder and run:', 'php database/migrate.php'];
+    }
+
     http_response_code(503);
-    echo '<!doctype html><meta charset="utf-8"><title>Update needed</title>'
+    [$heading, $text, $command] = $problem;
+    echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . e($heading) . '</title>'
         . '<div style="font-family:system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem">'
-        . '<h1 style="font-size:1.4rem">The database needs an update</h1>'
-        . '<p>On the server, open a terminal in the <code>student-portal</code> folder and run:</p>'
-        . '<pre style="background:#f1f3f5;padding:.75rem">php database/migrate.php</pre>'
+        . '<h1 style="font-size:1.4rem">' . e($heading) . '</h1><p>' . e($text) . '</p>'
+        . ($command ? '<pre style="background:#f1f3f5;padding:.75rem">' . e($command) . '</pre>' : '')
         . '<p>This keeps all existing data.</p></div>';
     exit;
 }
