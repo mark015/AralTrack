@@ -6,7 +6,7 @@ $student = require_student();
 $studentId = (int) $student['id'];
 $section = current_section_of($studentId);
 $semester = (int) setting('current_semester');
-$attendanceOn = Access::on('attendance');
+$attendanceOn = Access::can('attendance');
 
 $today = [];
 $month = array_fill_keys(array_keys(ATTENDANCE_STATUSES), 0);
@@ -42,7 +42,7 @@ require APP_ROOT . '/templates/header.php';
         </div>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <?php if (Access::learnersSeeGrades()): ?><a class="btn btn-primary" href="<?= e(url('grades.php')) ?>"><i class="bi bi-journal-text me-1"></i>Report card</a><?php endif; ?>
+        <?php if (Access::can('grades')): ?><a class="btn btn-primary" href="<?= e(url('grades.php')) ?>"><i class="bi bi-journal-text me-1"></i>Report card</a><?php endif; ?>
         <a class="btn btn-outline-primary" href="<?= e(url('learner/schedule.php')) ?>"><i class="bi bi-calendar-week me-1"></i>My schedule</a>
     </div>
 </div>

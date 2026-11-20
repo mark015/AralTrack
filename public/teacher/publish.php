@@ -7,7 +7,7 @@ if (!is_post()) {
 }
 $staff = require_staff();
 $class = teacher_class_or_abort(post_int('id'), $staff);
-if (!Access::gradeEncodingOpen()) {
+if (!Access::can('encoding')) {
     flash('warning', 'Grade encoding is turned off by the school right now, so grades are read-only.');
     redirect('teacher/class.php?id=' . $class['id']);
 }

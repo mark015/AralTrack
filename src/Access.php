@@ -98,19 +98,160 @@ final class Access
         };
     }
 
-    /** Stops a page that belongs to a part of the portal that is turned off. */
+    // ------------------------------------------------------------ per person
+
+    /** What the Super Admin can turn off for one person, by account type: part => label. */
+    public const PERSON_PARTS = [
+        'staff' => [
+            'attendance'   => 'Take attendance (QR scanning)',
+            'encoding'     => 'Type, upload and publish grades',
+            'class_record' => 'Class record',
+            'materials'    => 'Post class materials',
+            'excuses'      => 'Review excuse letters',
+            'messages'     => 'Messages with parents',
+            'news'         => 'News & calendar',
+        ],
+        'learner' => [
+            'grades'       => 'Report card (see grades)',
+            'attendance'   => 'See attendance',
+            'class_record' => 'My scores (class record)',
+            'materials'    => 'Class materials',
+            'requests'     => 'Request documents',
+            'news'         => 'News & calendar',
+        ],
+        'parent' => [
+            'grades'     => 'Report card (see grades)',
+            'attendance' => 'See attendance and get absence/late notifications',
+            'excuses'    => 'Send excuse letters',
+            'messages'   => 'Messages with teachers',
+            'requests'   => 'Request documents',
+            'news'       => 'News, calendar and announcement notifications',
+        ],
+    ];
+
+    /** @var array<string, array<string, string>> "type:id" => [part => note] */
+    private static array $blockCache = [];
+
+    /** The signed-in person: [type, id, staff role]. */
+    private static function viewer(): array
+    {
+        if ($staff = current_staff()) {
+            return ['staff', (int) $staff['id'], $staff['role']];
+        }
+        if ($parent = current_parent()) {
+            return ['parent', (int) $parent['id'], null];
+        }
+        if (($learner = current_student_id()) !== null) {
+            return ['learner', $learner, null];
+        }
+        return [null, null, null];
+    }
+
+    /** Parts turned off for one account: part => note shown to them. */
+    public static function blocksFor(string $type, int $id): array
+    {
+        $key = $type . ':' . $id;
+        if (!isset(self::$blockCache[$key])) {
+            self::$blockCache[$key] = [];
+            try {
+                foreach (db_all('SELECT part, note FROM access_blocks WHERE account_type = ? AND account_id = ?', [$type, $id]) as $row) {
+                    self::$blockCache[$key][$row['part']] = (string) $row['note'];
+                }
+            } catch (Throwable) {
+                // table not created yet
+            }
+        }
+        return self::$blockCache[$key];
+    }
+
+    /** Replaces the parts turned off for one account. @param list<string> $parts */
+    public static function setBlocks(string $type, int $id, array $parts, string $note, int $byStaffId): void
+    {
+        db_exec('DELETE FROM access_blocks WHERE account_type = ? AND account_id = ?', [$type, $id]);
+        foreach ($parts as $part) {
+            db_exec(
+                'INSERT INTO access_blocks (account_type, account_id, part, note, created_by) VALUES (?, ?, ?, ?, ?)',
+                [$type, $id, $part, $note !== '' ? $note : null, $byStaffId]
+            );
+        }
+        unset(self::$blockCache[$type . ':' . $id]);
+    }
+
+    /** Whether a part is on for everyone (control panel). 'grades' depends on who is looking. */
+    public static function globalOn(string $part, ?string $type = null): bool
+    {
+        return match ($part) {
+            'encoding' => self::gradeEncodingOpen(),
+            'grades' => match ($type) {
+                'parent' => self::parentsSeeGrades(),
+                'learner' => self::learnersSeeGrades(),
+                default => self::on('grading'),
+            },
+            default => self::on($part),
+        };
+    }
+
+    /**
+     * May the signed-in person use this part? Only when it is on in the control panel AND not turned off
+     * for that person. Super Admins are never limited.
+     */
+    public static function can(string $part): bool
+    {
+        [$type, $id, $role] = self::viewer();
+        if (!self::globalOn($part, $type)) {
+            return false;
+        }
+        if ($type === null || $role === 'superadmin') {
+            return true;
+        }
+        return !isset(self::blocksFor($type, $id)[$part]);
+    }
+
+    /** When the part is turned off for the signed-in person only: the note (possibly ''). Otherwise null. */
+    public static function personalBlock(string $part): ?string
+    {
+        [$type, $id, $role] = self::viewer();
+        if ($type === null || $role === 'superadmin' || !self::globalOn($part, $type)) {
+            return null;
+        }
+        return self::blocksFor($type, $id)[$part] ?? null;
+    }
+
+    /** Text for a page or button that is off for this person only. */
+    public static function personalMessage(string $part): string
+    {
+        $note = self::personalBlock($part);
+        return 'The school turned this off for your account.' . ($note ? ' Reason: ' . $note . '.' : '') . ' Please contact the school if you think this is a mistake.';
+    }
+
+    /**
+     * SQL condition keeping out parents who have this part turned off, for notifications.
+     * $parentColumn is the parent id column in the query, e.g. "ps.parent_id".
+     */
+    public static function parentAllowedSql(string $part, string $parentColumn): string
+    {
+        return "NOT EXISTS (SELECT 1 FROM access_blocks ab WHERE ab.account_type = 'parent' AND ab.account_id = {$parentColumn} AND ab.part = "
+            . db()->quote($part) . ')';
+    }
+
+    /** Stops a page that belongs to a part of the portal that is turned off (for everyone, or for this person). */
     public static function requireModule(string $module): void
     {
-        if (self::on($module)) {
+        if (self::can($module)) {
             return;
         }
+        $label = self::MODULES[$module][0] ?? ucfirst($module);
+        $personal = self::personalBlock($module) !== null;
         if (str_ends_with(str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? ''), '-api.php')) {
             http_response_code(403);
             header('Content-Type: application/json');
-            echo json_encode(['ok' => false, 'message' => self::MODULES[$module][0] . ' is turned off by the school.']);
+            echo json_encode(['ok' => false, 'message' => $label . ($personal ? ' is turned off for your account.' : ' is turned off by the school.')]);
             exit;
         }
-        self::stopPage(self::MODULES[$module][0] . ' is turned off', 'This part of the portal is turned off by the school for now.');
+        if ($personal) {
+            self::stopPage($label . ' is turned off for your account', self::personalMessage($module));
+        }
+        self::stopPage($label . ' is turned off', 'This part of the portal is turned off by the school for now.');
     }
 
     /** A friendly "not available" page (HTTP 403) with the normal header and footer. */

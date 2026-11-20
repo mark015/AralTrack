@@ -88,7 +88,7 @@ require APP_ROOT . '/templates/header.php';
     </div>
 <?php endif; ?>
 
-<?php $attendanceOn = Access::on('attendance'); $gradesOn = Access::parentsSeeGrades(); ?>
+<?php $attendanceOn = Access::can('attendance'); $gradesOn = Access::can('grades'); ?>
 <div class="row g-4">
     <?php foreach ($children as $child):
         $marked = array_sum($child['month']);

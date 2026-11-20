@@ -61,7 +61,7 @@ final class News
         if ($audience !== 'staff' && Access::on('news')) {
             db_exec(
                 "INSERT INTO parent_notifications (parent_id, student_id, type, message, link)
-                 SELECT id, NULL, 'announcement', ?, ? FROM parents WHERE is_active = 1",
+                 SELECT id, NULL, 'announcement', ?, ? FROM parents p WHERE is_active = 1 AND " . Access::parentAllowedSql('news', 'p.id'),
                 ['New announcement: ' . mb_substr($title, 0, 400), 'news.php#a' . $id]
             );
         }

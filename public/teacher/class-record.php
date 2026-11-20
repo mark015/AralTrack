@@ -137,7 +137,7 @@ if (is_post()) {
     }
 
     if ($action === 'apply') {
-        if (!Access::gradeEncodingOpen()) {
+        if (!Access::can('encoding')) {
             flash('warning', 'Grade encoding is turned off by the school right now, so computed grades can\'t be copied to the grade sheet.');
             redirect($here);
         }
@@ -383,7 +383,7 @@ require APP_ROOT . '/templates/header.php';
                     <?php if ($blankCells): ?><br><i class="bi bi-exclamation-triangle text-warning"></i> <?= $blankCells ?> blank score<?= $blankCells === 1 ? '' : 's' ?> in items already given (counted as 0). Save your scores before copying.<?php endif; ?>
                 </p>
             </div>
-            <?php if (!$locked && Access::gradeEncodingOpen()): ?>
+            <?php if (!$locked && Access::can('encoding')): ?>
                 <form method="post" action="<?= e(url($here)) ?>" class="m-0">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="apply">

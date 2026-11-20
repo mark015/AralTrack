@@ -5,8 +5,8 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $student = require_student();
-$materialsOn = Access::on('materials');
-$scoresOn = Access::on('class_record');
+$materialsOn = Access::can('materials');
+$scoresOn = Access::can('class_record');
 if (!$materialsOn && !$scoresOn) {
     Access::requireModule('materials');
 }

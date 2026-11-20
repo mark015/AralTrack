@@ -5,10 +5,12 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 $parent = require_parent();
 $child = parent_child_or_abort($parent, get_int('id'));
 $childId = (int) $child['id'];
-$attendanceOn = Access::on('attendance');
-$gradesOn = Access::parentsSeeGrades();
+$attendanceOn = Access::can('attendance');
+$gradesOn = Access::can('grades');
 if (!$attendanceOn && !$gradesOn) {
-    Access::stopPage('Attendance and grades are not available right now', 'The school has turned off attendance and report cards for now. Please check again later.');
+    Access::personalBlock('grades') !== null || Access::personalBlock('attendance') !== null
+        ? Access::stopPage('Attendance and grades are turned off for your account', Access::personalMessage(Access::personalBlock('grades') !== null ? 'grades' : 'attendance'))
+        : Access::stopPage('Attendance and grades are not available right now', 'The school has turned off attendance and report cards for now. Please check again later.');
 }
 $tab = get_str('tab') === 'grades' ? 'grades' : 'attendance';
 if ($tab === 'grades' && !$gradesOn) {

@@ -4,7 +4,7 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
 $class = teacher_class_or_abort(get_int('id'), $staff);
-if (!Access::gradeEncodingOpen()) {
+if (!Access::can('encoding')) {
     flash('warning', 'Grade encoding is turned off by the school right now, so grades are read-only.');
     redirect('teacher/class.php?id=' . $class['id']);
 }

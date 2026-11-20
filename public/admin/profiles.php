@@ -114,7 +114,7 @@ if ($studentId = get_int('id')) {
                                 <div class="fw-semibold small"><?= e($p['full_name']) ?></div>
                                 <div class="small text-secondary"><?= e(RELATIONSHIPS[$p['relationship']] ?? $p['relationship']) ?><?= $p['is_active'] ? '' : ' · deactivated' ?></div>
                             </div>
-                            <?php if (Access::on('messages')): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('messages.php?new=1&to=' . $studentId . ':' . $p['id'])) ?>" title="Send a message"><i class="bi bi-chat-dots"></i></a><?php endif; ?>
+                            <?php if (Access::can('messages')): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('messages.php?new=1&to=' . $studentId . ':' . $p['id'])) ?>" title="Send a message"><i class="bi bi-chat-dots"></i></a><?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>

@@ -18,20 +18,20 @@ final class Navigation
             return self::filter([
                 ['My children', 'house-heart', 'parent/index.php', 'also' => ['parent/child.php']],
                 ['Notifications', 'bell', 'parent/notifications.php', 'badge' => Notifications::unreadCount($parent['id'])],
-                ['Messages', 'chat-dots', 'messages.php', 'badge' => self::count(static fn () => Messages::unread('parent', $parent['id'])), 'show' => Access::on('messages')],
-                ['Excuse letters', 'envelope-paper', 'parent/excuses.php', 'show' => Access::on('excuses')],
-                ['Requests', 'file-earmark-text', 'requests.php', 'show' => Access::on('requests')],
-                ['News', 'megaphone', 'news.php', 'show' => Access::on('news')],
+                ['Messages', 'chat-dots', 'messages.php', 'badge' => self::count(static fn () => Messages::unread('parent', $parent['id'])), 'show' => Access::can('messages')],
+                ['Excuse letters', 'envelope-paper', 'parent/excuses.php', 'show' => Access::can('excuses')],
+                ['Requests', 'file-earmark-text', 'requests.php', 'show' => Access::can('requests')],
+                ['News', 'megaphone', 'news.php', 'show' => Access::can('news')],
             ]);
         }
         if ($learner) {
             return self::filter([
                 ['Home', 'house', 'learner/index.php'],
-                ['Report card', 'journal-text', 'grades.php', 'show' => Access::learnersSeeGrades()],
+                ['Report card', 'journal-text', 'grades.php', 'show' => Access::can('grades')],
                 ['Schedule', 'calendar-week', 'learner/schedule.php'],
-                ['Subjects', 'folder2-open', 'learner/subjects.php', 'also' => ['learner/scores.php'], 'show' => Access::on('materials') || Access::on('class_record')],
-                ['Requests', 'file-earmark-text', 'requests.php', 'show' => Access::on('requests')],
-                ['News', 'megaphone', 'news.php', 'show' => Access::on('news')],
+                ['Subjects', 'folder2-open', 'learner/subjects.php', 'also' => ['learner/scores.php'], 'show' => Access::can('materials') || Access::can('class_record')],
+                ['Requests', 'file-earmark-text', 'requests.php', 'show' => Access::can('requests')],
+                ['News', 'megaphone', 'news.php', 'show' => Access::can('news')],
             ]);
         }
         return [];
@@ -47,8 +47,8 @@ final class Navigation
         $messages = self::count(static fn () => Messages::unread('staff', $staff['id']));
         $changes = in_array($role, ['superadmin', 'admin', 'principal'], true) ? self::count(static fn () => Grading::pendingRequests()) : 0;
         $requests = in_array($role, ['superadmin', 'admin', 'principal'], true) ? self::count(static fn () => DocumentRequests::pending()) : 0;
-        $excusesOn = Access::on('excuses');
-        $messagesOn = Access::on('messages');
+        $excusesOn = Access::can('excuses');
+        $messagesOn = Access::can('messages');
 
         $teaching = [
             ['My classes', 'easel2', 'teacher/index.php', 'also' => ['teacher/class.php', 'teacher/upload.php', 'teacher/attendance.php', 'teacher/session.php', 'teacher/posts.php', 'teacher/schedule-edit.php', 'teacher/class-record.php']],
@@ -120,9 +120,9 @@ final class Navigation
                 ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses, 'show' => $excusesOn],
                 ['Learners', 'people', 'admin/profiles.php'],
                 $messagesItem,
-                ['News', 'megaphone', 'news.php', 'show' => Access::on('news')],
+                ['News', 'megaphone', 'news.php', 'show' => Access::can('news')],
             ],
-            default => [...$teaching, ['News', 'megaphone', 'news.php', 'show' => Access::on('news')]],
+            default => [...$teaching, ['News', 'megaphone', 'news.php', 'show' => Access::can('news')]],
         };
     }
 

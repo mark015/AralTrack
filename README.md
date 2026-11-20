@@ -58,6 +58,12 @@ The Super Admin has everything the registrar has, plus the **Control** menu:
   - *Maintenance mode*: only Super Admins can sign in; everyone else sees your message.
   - *Sign everyone out*: ends every session on every device except yours.
 - **Accounts & sign-in**: every teacher/staff, parent and learner account with its last sign-in (time and device). For each person: turn sign-in off (with a reason they see) or back on, sign out of every device, unlock after too many wrong tries, reset the password (shown once). One click turns off sign-in for learners who graduated, transferred out or dropped.
+- **Manage one person** (the Manage button in Accounts & sign-in): everything above for that person, plus **what they can use**, one switch per part:
+  - a teacher: take attendance, type/upload/publish grades, class record, post materials, review excuse letters, messages, news;
+  - a learner: report card (e.g. on hold until requirements are settled), attendance, My scores, class materials, document requests, news;
+  - a parent: report card, attendance (and absence/late notifications), excuse letters, messages, document requests, news.
+
+  An optional reason is shown to them. A part works for a person only when it is ON in the control panel **and** not turned off for that person; it applies on their next click and deletes nothing.
 - **Activity log**: every sign-in attempt (who, when, device, IP address, and why it failed), and every account, access and settings change (who changed what). Filter, and download as Excel. Entries are kept for 365 days (changeable).
 
 Only a Super Admin can create, change or turn off Admin and Super Admin accounts. You can't change your own role or turn off your own account, so the portal always keeps a Super Admin. On a new install (`php database/install.php`), the `admin` account is the Super Admin. When an existing portal is updated, its first active admin account becomes the Super Admin.
@@ -199,7 +205,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–006), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–007), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php)
@@ -212,7 +218,7 @@ public/               the pages
   teacher/                    classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
   parent/                     parent sign-up, sign-in, dashboard, child page, notifications, excuse letters
   admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles, backup
-  superadmin/                 control panel, accounts & sign-in, activity log
+  superadmin/                 control panel, accounts & sign-in, one person's access, activity log
   print/                      SF9, SF10, certificates
   messages.php, requests.php, news.php, privacy.php, file.php
   manifest.webmanifest, sw.js, offline.html   installable app

@@ -55,7 +55,7 @@ final class Notifications
                FROM session_attendance sa
                JOIN parent_students ps ON ps.student_id = sa.student_id
                JOIN students st        ON st.id = sa.student_id
-              WHERE sa.session_id = ? AND sa.status = 'absent'",
+              WHERE sa.session_id = ? AND sa.status = 'absent' AND " . Access::parentAllowedSql('attendance', 'ps.parent_id'),
             [
                 $session['class']['subject_name'],
                 date('M j, g:i A', strtotime($session['starts_at'])),
@@ -76,7 +76,8 @@ final class Notifications
              SELECT ps.parent_id, ps.student_id, 'grades', ?, CONCAT('parent/child.php?tab=grades&id=', ps.student_id)
                FROM parent_students ps
                JOIN enrollments e ON e.student_id = ps.student_id AND e.section_id = ?
-               JOIN grades g      ON g.student_id = ps.student_id AND g.class_assignment_id = ? AND g.quarter = ?",
+               JOIN grades g      ON g.student_id = ps.student_id AND g.class_assignment_id = ? AND g.quarter = ?
+              WHERE " . Access::parentAllowedSql('grades', 'ps.parent_id'),
             [
                 "Quarter {$quarter} grades for {$class['subject_name']} are now available.",
                 $class['section_id'],
@@ -93,9 +94,13 @@ final class Notifications
 
     public static function toParents(int $studentId, string $type, string $message, string $link): void
     {
+        // A parent who has the matching part turned off (Super Admin → per person) doesn't get it.
+        $part = ['late' => 'attendance', 'changed' => 'attendance', 'absent' => 'attendance', 'grades' => 'grades',
+            'announcement' => 'news', 'excuse' => 'excuses', 'request' => 'requests', 'message' => 'messages'][$type] ?? null;
         db_exec(
             'INSERT INTO parent_notifications (parent_id, student_id, type, message, link)
-             SELECT parent_id, student_id, ?, ?, ? FROM parent_students WHERE student_id = ?',
+             SELECT parent_id, student_id, ?, ?, ? FROM parent_students WHERE student_id = ?'
+                . ($part ? ' AND ' . Access::parentAllowedSql($part, 'parent_id') : ''),
             [$type, $message, $link, $studentId]
         );
     }

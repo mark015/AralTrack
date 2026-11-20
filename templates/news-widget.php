@@ -3,7 +3,7 @@
  * Latest announcements and upcoming calendar events, for dashboards.
  * @var string $newsViewer 'staff' or 'families'
  */
-if (!Access::on('news')) {
+if (!Access::can('news')) {
     return; // News & calendar is turned off by the Super Admin
 }
 $widgetNews = News::announcements($newsViewer, 3);

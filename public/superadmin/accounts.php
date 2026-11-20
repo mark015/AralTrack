@@ -49,6 +49,7 @@ if (is_post()) {
         redirect($here);
     }
     $name = $account['name'];
+    $back = post('return') === 'person' ? "superadmin/person.php?type={$type}&id={$id}" : $here;
     $isSelf = $type === 'staff' && (int) $account['id'] === $staff['id'];
     $lastSuper = $type === 'staff' && $account['role'] === 'superadmin' && (int) db_value("SELECT COUNT(*) FROM users WHERE role = 'superadmin' AND is_active = 1") <= 1;
     $scope = ['staff' => 'staff', 'parent' => 'parent', 'learner' => 'student'][$type];
@@ -120,7 +121,7 @@ if (is_post()) {
             flash('success', "New temporary password for {$name}: {$temp} — give it to them privately. They must choose a new one when they sign in. It is not shown again.");
             break;
     }
-    redirect($here);
+    redirect($back);
 }
 
 // ---- list
@@ -186,6 +187,15 @@ $total = (int) db_value("SELECT COUNT(*) {$base} WHERE {$whereSql}", $params);
 $pages = max(1, (int) ceil($total / PER_PAGE));
 $page = min($page, $pages);
 $rows = db_all("{$select} {$base} WHERE {$whereSql} ORDER BY {$order} LIMIT " . PER_PAGE . ' OFFSET ' . (($page - 1) * PER_PAGE), $params);
+$partsOff = [];
+if ($rows) {
+    foreach (db_all(
+        'SELECT account_id, COUNT(*) AS n FROM access_blocks WHERE account_type = ? AND account_id IN (' . implode(',', array_map(static fn ($r) => (int) $r['id'], $rows)) . ') GROUP BY account_id',
+        [$type]
+    ) as $row) {
+        $partsOff[(int) $row['account_id']] = (int) $row['n'];
+    }
+}
 
 $counts = [
     'staff' => db_one('SELECT COUNT(*) AS n, SUM(is_active = 0) AS off FROM users'),
@@ -211,7 +221,7 @@ require APP_ROOT . '/templates/header.php';
 <div class="page-head">
     <div>
         <h1 class="h3">Accounts &amp; sign-in</h1>
-        <p class="sub">Who can sign in, when they last did, and controls for each person. Every action is written to the activity log.</p>
+        <p class="sub">Who can sign in and when they last did. Press <strong>Manage</strong> to control one person: their sign-in, and which parts of the portal they can use. Every action is written to the activity log.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
         <?php if ($type === 'staff'): ?><a class="btn btn-primary" href="<?= e(url('admin/users.php')) ?>"><i class="bi bi-person-plus me-1"></i>New staff account</a><?php endif; ?>
@@ -275,6 +285,7 @@ require APP_ROOT . '/templates/header.php';
                         <?php if ($isLocked): ?> <span class="badge text-bg-warning"><i class="bi bi-lock-fill"></i>Locked</span><?php endif; ?>
                         <?php if ($r['must_change_password']): ?> <span class="badge text-bg-info">Temporary password</span><?php endif; ?>
                         <?php if (!$on && $r['blocked_reason']): ?><div class="text-secondary mt-1"><?= e($r['blocked_reason']) ?></div><?php endif; ?>
+                        <?php if ($partsOff[(int) $r['id']] ?? 0): ?><div class="mt-1"><a class="badge text-bg-warning text-decoration-none" href="<?= e(url('superadmin/person.php?type=' . $type . '&id=' . $r['id'])) ?>"><i class="bi bi-person-x"></i><?= $partsOff[(int) $r['id']] ?> part<?= $partsOff[(int) $r['id']] === 1 ? '' : 's' ?> off</a></div><?php endif; ?>
                     </td>
                     <td class="small">
                         <?php if ($r['last_login_at']): ?>
@@ -282,6 +293,7 @@ require APP_ROOT . '/templates/header.php';
                         <?php else: ?><span class="text-secondary">Never</span><?php endif; ?>
                     </td>
                     <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-primary" href="<?= e(url('superadmin/person.php?type=' . $type . '&id=' . $r['id'])) ?>" title="Control this person's access"><i class="bi bi-sliders me-1"></i>Manage</a>
                         <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($editLink($r))) ?>" title="Open the account" aria-label="Open <?= e($r['name']) ?>"><i class="bi bi-pencil"></i></a>
                         <div class="btn-group">
                             <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Access</button>

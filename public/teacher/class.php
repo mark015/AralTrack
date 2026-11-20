@@ -20,7 +20,7 @@ $max = (float) config('grade_max');
 
 $errors = [];
 $typed = null; // what the teacher typed, shown again when there are errors
-$encodingOpen = Access::gradeEncodingOpen();
+$encodingOpen = Access::can('encoding');
 if (is_post() && !$encodingOpen) {
     flash('warning', 'Grade encoding is turned off by the school right now, so grades are read-only.');
     redirect($here);
@@ -118,7 +118,13 @@ require APP_ROOT . '/templates/class-tabs.php';
 ?>
 <?php if (!$encodingOpen): ?>
     <div class="alert alert-warning"><i class="bi bi-lock-fill" aria-hidden="true"></i><div>
-        <?= Access::on('grading') ? '<strong>Grade encoding is turned off</strong> by the school right now. You can see the grades, but not change, upload or publish them.' : '<strong>Grading is turned off</strong> by the school right now. Grades are read-only.' ?>
+        <?php if (Access::personalBlock('encoding') !== null): ?>
+            <strong>Grade encoding is turned off for your account.</strong> You can see the grades, but not change, upload or publish them. <?= e(Access::personalMessage('encoding')) ?>
+        <?php elseif (Access::on('grading')): ?>
+            <strong>Grade encoding is turned off</strong> by the school right now. You can see the grades, but not change, upload or publish them.
+        <?php else: ?>
+            <strong>Grading is turned off</strong> by the school right now. Grades are read-only.
+        <?php endif; ?>
     </div></div>
 <?php endif; ?>
 
@@ -155,7 +161,7 @@ require APP_ROOT . '/templates/class-tabs.php';
                             <?php if ($isPublished): ?> · since <?= e(date('M j, Y', strtotime($published[$q]['published_at']))) ?><?php endif; ?>
                         </p>
                         <div class="d-flex flex-wrap gap-2">
-                            <?php if (Access::on('class_record')): ?>
+                            <?php if (Access::can('class_record')): ?>
                                 <a class="btn btn-sm btn-outline-primary" href="<?= e(url("teacher/class-record.php?id={$classId}&q={$q}")) ?>"><i class="bi bi-table me-1"></i>Class record</a>
                             <?php endif; ?>
                             <?php if (!$encodingOpen): ?>

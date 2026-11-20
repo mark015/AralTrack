@@ -1,7 +1,7 @@
 <?php
 // Teacher home: today's scheduled classes, my classes this school year with grading progress, and school news.
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
-$attendanceOn = Access::on('attendance');
+$attendanceOn = Access::can('attendance');
 
 $staff = require_staff();
 $sy = active_school_year();

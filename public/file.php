@@ -31,7 +31,7 @@ switch ($kind) {
         break;
 
     case 'material':
-        if (!Access::on('materials')) {
+        if (!Access::can('materials')) {
             break;
         }
         $row = db_one(
