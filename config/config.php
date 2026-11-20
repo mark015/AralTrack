@@ -6,7 +6,7 @@ return [
     'app_name'    => 'Student Grade Portal',
     'school_name' => 'Sample Senior High School',
     'base_url'    => '/student-portal',   // URL path of this folder under htdocs, no trailing slash
-    'debug'       => true,                // show error details; set to false on the live server
+    'debug'       => false,               // true shows error details: only on your own computer (set it in config.local.php)
     'timezone'    => 'Asia/Manila',
 
     // true: after new code is deployed (e.g. automatically from GitHub), the first page load applies the
