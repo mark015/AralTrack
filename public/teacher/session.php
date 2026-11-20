@@ -3,6 +3,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
+Access::requireModule('attendance');
 $session = teacher_session_or_abort(get_int('id'), $staff);
 $class = $session['class'];
 $sessionId = (int) $session['id'];

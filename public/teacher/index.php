@@ -1,6 +1,7 @@
 <?php
 // Teacher home: today's scheduled classes, my classes this school year with grading progress, and school news.
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
+$attendanceOn = Access::on('attendance');
 
 $staff = require_staff();
 $sy = active_school_year();
@@ -90,7 +91,8 @@ require APP_ROOT . '/templates/header.php';
                                 <div class="fw-semibold small"><?= e($slot['subject_name']) ?></div>
                                 <div class="small text-secondary"><?= e(section_label($slot)) ?></div>
                             </div>
-                            <?php if ($session && $session['finished_at'] !== null): ?>
+                            <?php if (!$attendanceOn): ?>
+                            <?php elseif ($session && $session['finished_at'] !== null): ?>
                                 <span class="badge text-bg-success"><i class="bi bi-check2-circle"></i>Done</span>
                             <?php elseif ($session): ?>
                                 <a class="btn btn-sm btn-success" href="<?= e(url('teacher/session.php?id=' . $session['id'])) ?>">Continue</a>
@@ -150,12 +152,13 @@ require APP_ROOT . '/templates/header.php';
                         </div>
                         <div class="card-footer d-flex flex-wrap align-items-center gap-2">
                             <a class="btn btn-sm btn-primary" href="<?= e(url('teacher/class.php?id=' . $id)) ?>"><i class="bi bi-journal-check me-1"></i>Grades</a>
-                            <?php if ($session && $session['finished_at'] === null): ?>
+                            <?php if (!$attendanceOn): ?>
+                            <?php elseif ($session && $session['finished_at'] === null): ?>
                                 <a class="btn btn-sm btn-success" href="<?= e(url('teacher/session.php?id=' . $session['id'])) ?>"><i class="bi bi-qr-code-scan me-1"></i>Continue attendance</a>
                             <?php else: ?>
                                 <a class="btn btn-sm btn-outline-primary" href="<?= e(url('teacher/attendance.php?id=' . $id)) ?>"><i class="bi bi-qr-code-scan me-1"></i>Attendance</a>
                             <?php endif; ?>
-                            <?php if ($session && $session['finished_at'] !== null): ?>
+                            <?php if ($attendanceOn && $session && $session['finished_at'] !== null): ?>
                                 <span class="small text-success ms-auto"><i class="bi bi-check2-circle"></i> Taken today</span>
                             <?php endif; ?>
                         </div>

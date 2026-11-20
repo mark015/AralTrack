@@ -5,6 +5,11 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $student = require_student();
+$materialsOn = Access::on('materials');
+$scoresOn = Access::on('class_record');
+if (!$materialsOn && !$scoresOn) {
+    Access::requireModule('materials');
+}
 $studentId = (int) $student['id'];
 $section = current_section_of($studentId);
 $semester = (int) setting('current_semester');
@@ -26,7 +31,7 @@ $selected = null;
 $posts = [];
 if ($classId = get_int('class')) {
     $selected = $byId[$classId] ?? abort(404, 'That subject is not in your class this school year.');
-    $posts = db_all('SELECT * FROM class_posts WHERE class_assignment_id = ? ORDER BY id DESC', [$classId]);
+    $posts = $materialsOn ? db_all('SELECT * FROM class_posts WHERE class_assignment_id = ? ORDER BY id DESC', [$classId]) : [];
 }
 
 $title = $selected ? $selected['subject_name'] : 'Subjects';
@@ -45,9 +50,11 @@ require APP_ROOT . '/templates/header.php';
             <h1 class="h3"><?= e($selected['subject_name']) ?></h1>
             <p class="sub"><?= e($selected['teacher_name']) ?> · <?= e(semester_label((int) $selected['semester'])) ?></p>
         </div>
-        <a class="btn btn-outline-primary" href="<?= e(url('learner/scores.php?class=' . $selected['id'])) ?>"><i class="bi bi-list-check me-1"></i>My scores</a>
+        <?php if ($scoresOn): ?><a class="btn btn-outline-primary" href="<?= e(url('learner/scores.php?class=' . $selected['id'])) ?>"><i class="bi bi-list-check me-1"></i>My scores</a><?php endif; ?>
     </div>
-    <?php if (!$posts): ?>
+    <?php if (!$materialsOn): ?>
+        <p class="text-secondary">Class materials are turned off by the school right now.</p>
+    <?php elseif (!$posts): ?>
         <div class="card"><div class="card-body text-center py-5">
             <div class="icon-bubble mx-auto mb-3"><i class="bi bi-folder2-open"></i></div>
             <p class="fw-semibold mb-1">No materials yet.</p>
@@ -86,7 +93,7 @@ require APP_ROOT . '/templates/header.php';
                     <span class="subject-chip mb-2" style="--hue: <?= color_hue($c['subject_code']) ?>"><?= e($c['subject_code']) ?></span>
                     <h3 class="h6 mb-1 text-body"><?= e($c['subject_name']) ?></h3>
                     <div class="small text-secondary"><?= e($c['teacher_name']) ?></div>
-                    <div class="small mt-2 <?= $c['posts'] ? 'text-primary' : 'text-secondary' ?>">
+                    <div class="small mt-2 <?= $c['posts'] ? 'text-primary' : 'text-secondary' ?><?= $materialsOn ? '' : ' d-none' ?>">
                         <i class="bi bi-folder2-open me-1"></i><?= (int) $c['posts'] ?> post<?= (int) $c['posts'] === 1 ? '' : 's' ?>
                         <?php if ($c['last_post']): ?> · latest <?= e(when_label($c['last_post'])) ?><?php endif; ?>
                     </div>

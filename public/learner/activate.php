@@ -2,7 +2,7 @@
 // First sign-in when learners use passwords: confirm the account with LRN + birthdate, then choose a password.
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
-if (setting('learner_login') !== 'password') {
+if (setting('learner_login') !== 'password' || !Access::loginOpen('learner')) {
     redirect('index.php');
 }
 $error = null;
@@ -26,10 +26,14 @@ if (is_post()) {
         $student = db_one('SELECT * FROM students WHERE lrn = ?', [$lrn]);
         if ($student && $student['password_hash'] !== null) {
             $error = 'This account is already activated. Sign in with your password, or ask the registrar to reset it.';
+        } elseif ($student && hash_equals($student['birthdate'], $birthdate) && $student['login_blocked']) {
+            $error = 'Your access to the portal was turned off by the school. Please talk to your adviser.';
+            Access::logLogin('learner', (int) $student['id'], $lrn, false, 'turned off');
         } elseif ($student && hash_equals($student['birthdate'], $birthdate)) {
             db_exec('UPDATE students SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $student['id']]);
             RateLimiter::clear('student', $lrn);
             login_student((int) $student['id']);
+            Access::logLogin('learner', (int) $student['id'], $lrn, true, 'activated');
             flash('success', 'Your account is ready. Next time, sign in with your LRN and this password.');
             redirect('learner/index.php');
         } else {

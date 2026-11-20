@@ -4,6 +4,7 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
 $class = teacher_class_or_abort(get_int('id'), $staff);
+Access::requireModule('attendance');
 $month = get_str('month');
 if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month) !== 1) {
     abort(404, 'Choose a month.');

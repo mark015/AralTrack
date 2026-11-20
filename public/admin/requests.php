@@ -88,6 +88,7 @@ $printLink = static function (array $r): ?string {
 $title = 'Document requests';
 require APP_ROOT . '/templates/header.php';
 ?>
+<?= Access::offNotice('requests') ?>
 <div class="page-head">
     <div>
         <h1 class="h3">Document requests</h1>

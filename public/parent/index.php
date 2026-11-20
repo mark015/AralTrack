@@ -88,6 +88,7 @@ require APP_ROOT . '/templates/header.php';
     </div>
 <?php endif; ?>
 
+<?php $attendanceOn = Access::on('attendance'); $gradesOn = Access::parentsSeeGrades(); ?>
 <div class="row g-4">
     <?php foreach ($children as $child):
         $marked = array_sum($child['month']);
@@ -105,11 +106,14 @@ require APP_ROOT . '/templates/header.php';
                                 · <?= e(RELATIONSHIPS[$child['relationship']]) ?>
                             </div>
                         </div>
+                        <?php if ($attendanceOn): ?>
                         <div class="ring" style="--pct: <?= (int) $rate ?>; --ring: <?= $ringColor ?>" title="Attended <?= $rate ?? 0 ?>% of class meetings in <?= e(date('F')) ?>">
                             <span><?= $rate === null ? '–' : $rate . '%' ?><small><?= e(date('M')) ?></small></span>
                         </div>
+                        <?php endif; ?>
                     </div>
 
+                    <?php if ($attendanceOn): ?>
                     <div class="section-title mb-2">Today's classes</div>
                     <?php if (!$child['today']): ?>
                         <p class="small text-secondary"><i class="bi bi-calendar-x me-1"></i>No class attendance taken yet today.</p>
@@ -142,10 +146,11 @@ require APP_ROOT . '/templates/header.php';
                             </div>
                         <?php endforeach; ?>
                     </div>
+                    <?php endif; ?>
 
                     <div class="d-flex gap-2">
-                        <a class="btn btn-primary" href="<?= e(url('parent/child.php?id=' . $child['id'])) ?>"><i class="bi bi-calendar-check me-1"></i>Attendance</a>
-                        <a class="btn btn-outline-primary" href="<?= e(url('parent/child.php?tab=grades&id=' . $child['id'])) ?>"><i class="bi bi-journal-text me-1"></i>Grades</a>
+                        <?php if ($attendanceOn): ?><a class="btn btn-primary" href="<?= e(url('parent/child.php?id=' . $child['id'])) ?>"><i class="bi bi-calendar-check me-1"></i>Attendance</a><?php endif; ?>
+                        <?php if ($gradesOn): ?><a class="btn btn-outline-primary" href="<?= e(url('parent/child.php?tab=grades&id=' . $child['id'])) ?>"><i class="bi bi-journal-text me-1"></i>Grades</a><?php endif; ?>
                     </div>
                 </div>
             </div>

@@ -31,6 +31,9 @@ switch ($kind) {
         break;
 
     case 'material':
+        if (!Access::on('materials')) {
+            break;
+        }
         $row = db_one(
             'SELECT cp.*, ca.section_id, ca.teacher_id FROM class_posts cp JOIN class_assignments ca ON ca.id = cp.class_assignment_id WHERE cp.id = ?',
             [$id]

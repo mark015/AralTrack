@@ -697,3 +697,14 @@ main.container { padding-top: 1.75rem !important; padding-bottom: 3rem !importan
 }
 
 .legend-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .3rem; vertical-align: baseline; }
+
+/* ---------- Super Admin control panel ---------- */
+
+.switch-list .switch-row { display: flex; gap: .85rem; align-items: center; padding: .8rem 0; border-top: 1px solid var(--sp-line); }
+.switch-list .switch-row:first-child { border-top: 0; padding-top: .25rem; }
+.switch-list .switch-row.sub { padding-left: 3.1rem; }
+.switch-list .switch-row label { cursor: pointer; }
+.switch-row .form-switch .form-check-input { width: 2.75em; height: 1.45em; cursor: pointer; }
+.switch-row .form-check-input:checked { background-color: #14946b; border-color: #14946b; }
+.portal-notice { background: #fff4d6; color: #714a00; border-bottom: 1px solid #f6dea0; font-size: .88rem; }
+[data-bs-theme="dark"] .portal-notice { background: rgba(224, 160, 0, .16); color: #f7d48a; border-bottom-color: rgba(224, 160, 0, .35); }

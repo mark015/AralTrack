@@ -4,6 +4,10 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
 $class = teacher_class_or_abort(get_int('id'), $staff);
+if (!Access::gradeEncodingOpen()) {
+    flash('warning', 'Grade encoding is turned off by the school right now, so grades are read-only.');
+    redirect('teacher/class.php?id=' . $class['id']);
+}
 $classId = (int) $class['id'];
 $quarter = class_quarter_or_abort($class, get_int('q'));
 if (Grading::isLocked((int) $class['school_year_id'], $quarter)) {

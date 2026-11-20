@@ -5,7 +5,17 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 $parent = require_parent();
 $child = parent_child_or_abort($parent, get_int('id'));
 $childId = (int) $child['id'];
+$attendanceOn = Access::on('attendance');
+$gradesOn = Access::parentsSeeGrades();
+if (!$attendanceOn && !$gradesOn) {
+    Access::stopPage('Attendance and grades are not available right now', 'The school has turned off attendance and report cards for now. Please check again later.');
+}
 $tab = get_str('tab') === 'grades' ? 'grades' : 'attendance';
+if ($tab === 'grades' && !$gradesOn) {
+    $tab = 'attendance';
+} elseif ($tab === 'attendance' && !$attendanceOn) {
+    $tab = 'grades';
+}
 
 $month = get_str('month');
 if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month) !== 1) {
@@ -56,14 +66,15 @@ require APP_ROOT . '/templates/header.php';
     </ol>
 </nav>
 <ul class="nav nav-tabs mb-4 d-print-none">
-    <li class="nav-item"><a class="nav-link<?= $tab === 'attendance' ? ' active' : '' ?>" href="<?= e(url('parent/child.php?id=' . $childId)) ?>">Attendance</a></li>
-    <li class="nav-item"><a class="nav-link<?= $tab === 'grades' ? ' active' : '' ?>" href="<?= e(url('parent/child.php?tab=grades&id=' . $childId)) ?>">Grades</a></li>
+    <?php if ($attendanceOn): ?><li class="nav-item"><a class="nav-link<?= $tab === 'attendance' ? ' active' : '' ?>" href="<?= e(url('parent/child.php?id=' . $childId)) ?>">Attendance</a></li><?php endif; ?>
+    <?php if ($gradesOn): ?><li class="nav-item"><a class="nav-link<?= $tab === 'grades' ? ' active' : '' ?>" href="<?= e(url('parent/child.php?tab=grades&id=' . $childId)) ?>">Grades</a></li><?php endif; ?>
 </ul>
 
 <?php if ($tab === 'grades'): ?>
     <?php
     $yearFormAction = 'parent/child.php';
     $yearFormHidden = ['id' => $childId, 'tab' => 'grades'];
+    $showAttendance = $attendanceOn;
     require APP_ROOT . '/templates/report-card.php';
     ?>
     <?php if ($ackYear): ?>

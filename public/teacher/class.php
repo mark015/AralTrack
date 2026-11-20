@@ -20,6 +20,11 @@ $max = (float) config('grade_max');
 
 $errors = [];
 $typed = null; // what the teacher typed, shown again when there are errors
+$encodingOpen = Access::gradeEncodingOpen();
+if (is_post() && !$encodingOpen) {
+    flash('warning', 'Grade encoding is turned off by the school right now, so grades are read-only.');
+    redirect($here);
+}
 
 if (is_post() && post('action') === 'request_change') {
     $studentId = post_int('student_id');
@@ -111,6 +116,11 @@ $activeTab = 'grades';
 $learnerCount = $total;
 require APP_ROOT . '/templates/class-tabs.php';
 ?>
+<?php if (!$encodingOpen): ?>
+    <div class="alert alert-warning"><i class="bi bi-lock-fill" aria-hidden="true"></i><div>
+        <?= Access::on('grading') ? '<strong>Grade encoding is turned off</strong> by the school right now. You can see the grades, but not change, upload or publish them.' : '<strong>Grading is turned off</strong> by the school right now. Grades are read-only.' ?>
+    </div></div>
+<?php endif; ?>
 
 <?php if ($errors): ?>
     <div class="alert alert-danger">
@@ -145,14 +155,17 @@ require APP_ROOT . '/templates/class-tabs.php';
                             <?php if ($isPublished): ?> · since <?= e(date('M j, Y', strtotime($published[$q]['published_at']))) ?><?php endif; ?>
                         </p>
                         <div class="d-flex flex-wrap gap-2">
-                            <?php if (!$isLocked): ?>
+                            <?php if (Access::on('class_record')): ?>
                                 <a class="btn btn-sm btn-outline-primary" href="<?= e(url("teacher/class-record.php?id={$classId}&q={$q}")) ?>"><i class="bi bi-table me-1"></i>Class record</a>
+                            <?php endif; ?>
+                            <?php if (!$encodingOpen): ?>
+                            <?php elseif (!$isLocked): ?>
                                 <a class="btn btn-sm btn-outline-primary" href="<?= e(url("teacher/template.php?id={$classId}&q={$q}")) ?>"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Template</a>
                                 <a class="btn btn-sm btn-outline-primary" href="<?= e(url("teacher/upload.php?id={$classId}&q={$q}")) ?>"><i class="bi bi-upload me-1"></i>Upload</a>
                             <?php else: ?>
-                                <a class="btn btn-sm btn-outline-primary" href="<?= e(url("teacher/class-record.php?id={$classId}&q={$q}")) ?>"><i class="bi bi-table me-1"></i>Class record</a>
                                 <a class="btn btn-sm btn-outline-secondary" href="#change-requests"><i class="bi bi-pencil-square me-1"></i>Request a change</a>
                             <?php endif; ?>
+                            <?php if ($encodingOpen): ?>
                             <form method="post" action="<?= e(url('teacher/publish.php')) ?>" class="m-0">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="id" value="<?= $classId ?>">
@@ -168,6 +181,7 @@ require APP_ROOT . '/templates/class-tabs.php';
                                     <button class="btn btn-sm btn-success" <?= $gradedCount[$q] === 0 ? 'disabled' : '' ?> onclick="return confirm('<?= e($confirm) ?>')">Publish</button>
                                 <?php endif; ?>
                             </form>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -212,7 +226,7 @@ require APP_ROOT . '/templates/class-tabs.php';
                             $isLocked = in_array($q, $locked, true); ?>
                             <td class="q">
                                 <input type="text" inputmode="decimal" maxlength="6" class="form-control form-control-sm grade-input mx-auto"
-                                       name="g[<?= $sid ?>][<?= $q ?>]" value="<?= e($value) ?>" <?= $isLocked ? 'disabled' : '' ?>
+                                       name="g[<?= $sid ?>][<?= $q ?>]" value="<?= e($value) ?>" <?= $isLocked || !$encodingOpen ? 'disabled' : '' ?>
                                        aria-label="Quarter <?= $q ?> grade for <?= e(student_name($student)) ?>">
                             </td>
                         <?php endforeach; ?>
@@ -225,7 +239,7 @@ require APP_ROOT . '/templates/class-tabs.php';
         </div>
         <div class="sticky-actions d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span class="small text-secondary">Grades <?= e(format_grade($min)) ?>–<?= e(format_grade($max)) ?>. Edits to a published quarter are visible to learners right away.</span>
-            <button class="btn btn-primary" <?= count($locked) === count($quarters) ? 'disabled' : '' ?>><i class="bi bi-check2 me-1"></i>Save grades</button>
+            <button class="btn btn-primary" <?= count($locked) === count($quarters) || !$encodingOpen ? 'disabled' : '' ?>><i class="bi bi-check2 me-1"></i>Save grades</button>
         </div>
     </form>
 
@@ -234,7 +248,9 @@ require APP_ROOT . '/templates/class-tabs.php';
         <div class="col-lg-5">
             <div class="card">
                 <div class="card-body">
-                    <?php if (!$locked): ?>
+                    <?php if (!$encodingOpen): ?>
+                        <p class="small text-secondary mb-0"><i class="bi bi-lock me-1"></i>Grade encoding is turned off by the school, so change requests can't be sent right now.</p>
+                    <?php elseif (!$locked): ?>
                         <p class="small text-secondary mb-0"><i class="bi bi-unlock me-1"></i>No quarter is locked yet, so you can still edit grades directly above. After a quarter's deadline, request changes here.</p>
                     <?php else: ?>
                         <form method="post" action="<?= e(url($here)) ?>">

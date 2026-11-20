@@ -26,6 +26,7 @@ if (current_staff() === null) {
     $respond(['kind' => 'error', 'accepted' => false, 'message' => 'You were signed out. Reload the page and sign in again.'], 401);
 }
 $staff = require_staff();
+Access::requireModule('attendance');
 $session = teacher_session_or_abort($sessionId, $staff);
 
 $result = match (post('action')) {

@@ -61,7 +61,7 @@ function managed_class_or_abort(int $classId, array $staff): array
     if (!$class) {
         abort(404, 'That class does not exist.');
     }
-    if ((int) $class['teacher_id'] !== $staff['id'] && $staff['role'] !== 'admin') {
+    if ((int) $class['teacher_id'] !== $staff['id'] && !is_admin($staff)) {
         abort(403, 'Only the class teacher or an admin can change this.');
     }
     return $class;
@@ -198,7 +198,7 @@ function check_parent_link_code(string $lrnTyped, string $codeTyped): array
 /** Staff who see every learner (not just their own classes or advisory). */
 function sees_all_learners(array $staff): bool
 {
-    return in_array($staff['role'], ['admin', 'principal', 'guidance'], true);
+    return in_array($staff['role'], ['superadmin', 'admin', 'principal', 'guidance'], true);
 }
 
 /** Section ids the staff member advises in the active school year. */

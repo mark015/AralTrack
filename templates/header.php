@@ -159,6 +159,15 @@ $flashes = take_flashes();
         <?php endif; ?>
     </div>
 </nav>
+<?php if (class_exists('Access', false) && Access::maintenance()): ?>
+    <div class="portal-notice d-print-none" role="status">
+        <div class="container py-2"><i class="bi bi-cone-striped me-1" aria-hidden="true"></i>
+            <?= ($navStaff['role'] ?? '') === 'superadmin'
+                ? '<strong>Maintenance mode is ON.</strong> Only Super Admins can sign in. <a href="' . e(url('superadmin/index.php')) . '">Control panel</a>'
+                : e(Access::maintenanceMessage()) ?>
+        </div>
+    </div>
+<?php endif; ?>
 <main class="flex-grow-1<?= $fullWidth ? '' : ' container py-4' ?>">
 <?php if ($flashes): ?>
     <?php if ($fullWidth): ?><div class="container pt-3"><?php endif; ?>

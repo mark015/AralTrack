@@ -16,23 +16,34 @@ if (is_post()) {
 
     if ($login === null || $password === '') {
         $error = 'Enter your mobile number or email, and your password.';
+    } elseif (!Access::loginOpen('parent')) {
+        $error = Access::closedMessage('parent');
+        Access::logLogin('parent', null, $login, false, Access::maintenance() ? 'maintenance' : 'sign-in off');
     } elseif (RateLimiter::isLocked('parent', $login, $ip)) {
         $error = 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.';
+        Access::logLogin('parent', null, $login, false, 'locked');
     } else {
         $parent = db_one('SELECT * FROM parents WHERE login = ?', [$login]);
         $ok = password_verify($password, $parent['password_hash'] ?? DUMMY_PASSWORD_HASH);
-        if ($parent && $ok && $parent['is_active']) {
+        if ($parent && $ok && !$parent['is_active']) {
+            $error = 'Your account was turned off by the school.' . ($parent['blocked_reason'] ? ' Reason: ' . $parent['blocked_reason'] . '.' : '') . ' Please contact the registrar.';
+            Access::logLogin('parent', (int) $parent['id'], $login, false, 'turned off');
+        } elseif ($parent && $ok) {
             RateLimiter::clear('parent', $login);
             if (password_needs_rehash($parent['password_hash'], PASSWORD_DEFAULT)) {
                 db_exec('UPDATE parents SET password_hash = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $parent['id']]);
             }
             login_parent($parent);
+            Access::logLogin('parent', (int) $parent['id'], $login, true);
             redirect($parent['must_change_password'] ? 'parent/password.php' : 'parent/index.php');
+        } else {
+            RateLimiter::recordFailure('parent', $login, $ip);
+            Access::logLogin('parent', $parent ? (int) $parent['id'] : null, $login, false, 'wrong password');
+            $error = 'Incorrect mobile number/email or password.';
         }
-        RateLimiter::recordFailure('parent', $login, $ip);
-        $error = 'Incorrect mobile number/email or password.';
     }
 }
+$closedNotice = Access::loginOpen('parent') ? null : Access::closedMessage('parent');
 
 $title = 'Parent sign-in';
 require APP_ROOT . '/templates/header.php';
@@ -44,7 +55,10 @@ require APP_ROOT . '/templates/header.php';
                 <div class="auth-icon gold"><i class="bi bi-people-fill" aria-hidden="true"></i></div>
                 <h1 class="h4 mb-1">Parent sign-in</h1>
                 <p class="text-secondary small mb-4">See your child's class attendance and grades.</p>
-                <?php if ($error): ?><div class="alert alert-danger" role="alert"><?= e($error) ?></div><?php endif; ?>
+                <?php if ($closedNotice): ?>
+                    <div class="alert alert-warning" role="status"><i class="bi bi-slash-circle" aria-hidden="true"></i><div><?= e($closedNotice) ?></div></div>
+                <?php endif; ?>
+                <?php if ($error && $error !== $closedNotice): ?><div class="alert alert-danger" role="alert"><?= e($error) ?></div><?php endif; ?>
                 <form method="post" action="<?= e(url('parent/login.php')) ?>">
                     <?= csrf_field() ?>
                     <div class="mb-3">

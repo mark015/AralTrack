@@ -3,6 +3,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $parent = require_parent();
+Access::requireModule('excuses');
 $children = db_all(
     'SELECT st.* FROM parent_students ps JOIN students st ON st.id = ps.student_id WHERE ps.parent_id = ? ORDER BY st.first_name',
     [$parent['id']]

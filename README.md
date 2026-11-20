@@ -8,6 +8,7 @@ A school portal for Grade 11 and 12 learners, their parents, subject teachers an
 - **Advisers** see their section's attendance, review excuse letters, rate observed values and print SF9 report cards.
 - The **registrar (admin)** sets up the school year, sections, subjects, staff, parents and learners; prints QR IDs, DepEd forms and certificates; and handles grade deadlines, change requests, the honor roll, the year-end rollover and backups.
 - The **principal** sees school reports and all records, and approves grade changes. A **guidance counselor** sees learner profiles, at-risk learners and excuse letters.
+- The **Super Admin** controls the whole portal: turns parts of it on or off (attendance, grading, messages, …), decides who can sign in (teachers & staff, learners, parents), puts the portal in maintenance mode, controls each person's access, and sees every sign-in and every change.
 
 Each school year has **two semesters**. A subject is taught in one of them: 1st-semester subjects are graded in **Quarters 1–2**, 2nd-semester subjects in **Quarters 3–4**. A subject's final grade is the average of its two quarters, and each semester has its own general average.
 
@@ -30,7 +31,8 @@ Demo accounts (`--seed` only):
 
 | Who | Sign in with |
 |---|---|
-| Registrar (admin) | `admin` / `admin123` at `/staff/login.php` |
+| Super Admin | `superadmin` / `super123` at `/staff/login.php` |
+| Registrar (admin) | `admin` / `admin123` |
 | Teacher, math and science; adviser of Grade 12 STEM – Einstein | `msantos` / `teacher123` |
 | Teacher, language, social science and PE; adviser of Grade 11 STEM – Newton | `jreyes` / `teacher123` |
 | Principal | `principal` / `principal123` |
@@ -46,10 +48,24 @@ The demo subjects are a sample K to 12 STEM load. Replace them with your school'
 
 ## How it works
 
+### Super Admin
+
+The Super Admin has everything the registrar has, plus the **Control** menu:
+
+- **Control panel**
+  - *Parts of the system*, each on or off: Attendance (QR scanning), Grading (with *Grade encoding*, *Learners see their grades* and *Parents see grades*), Class record, Excuse letters, Messages, Class materials, Document requests, News & calendar. A part that is off disappears from the menus of teachers, learners and parents, and its pages say it is turned off. Nothing is deleted: turn it back on and everything is there.
+  - *Sign-in*: teachers & staff, learners and parents each on or off; new parent accounts open or closed; how learners sign in (LRN only, LRN + birthdate, LRN + password). Turning a group off also signs its people out on their next click. A Super Admin can always sign in.
+  - *Maintenance mode*: only Super Admins can sign in; everyone else sees your message.
+  - *Sign everyone out*: ends every session on every device except yours.
+- **Accounts & sign-in**: every teacher/staff, parent and learner account with its last sign-in (time and device). For each person: turn sign-in off (with a reason they see) or back on, sign out of every device, unlock after too many wrong tries, reset the password (shown once). One click turns off sign-in for learners who graduated, transferred out or dropped.
+- **Activity log**: every sign-in attempt (who, when, device, IP address, and why it failed), and every account, access and settings change (who changed what). Filter, and download as Excel. Entries are kept for 365 days (changeable).
+
+Only a Super Admin can create, change or turn off Admin and Super Admin accounts. You can't change your own role or turn off your own account, so the portal always keeps a Super Admin. On a new install (`php database/install.php`), the `admin` account is the Super Admin. When an existing portal is updated, its first active admin account becomes the Super Admin.
+
 ### Registrar (admin)
 
 Do these in order; the dashboard has a checklist.
-1. **Setup → Settings**: school name, School ID, division, region, address, principal's name (printed on forms and certificates), how learners sign in, the current semester, when a scan counts as Late, and how many absences make a learner "at risk".
+1. **Setup → Settings**: school name, School ID, division, region, address, principal's name (printed on forms and certificates), the current semester, when a scan counts as Late, and how many absences make a learner "at risk".
 2. **Setup → School years**: add one, e.g. `2026-2027`, and make it active.
 3. **Setup → Subjects**: each subject with its type (core, applied or specialized). Optionally set its **class record weights**; blank means the DepEd default (core 25/50/25; applied and academic-track specialized 25/45/30). Use 20/60/20 for TVL, Sports, and Arts and Design specialized subjects.
 4. **Setup → Staff accounts**: teachers, admins, the principal and guidance counselors, each with a temporary password they must change at first sign-in.
@@ -103,7 +119,7 @@ Do these in order; the dashboard has a checklist.
 
 Sign in at the home page. The learner home shows today's classes and attendance, this month's totals, news and the calendar. **Report card** (one table per semester, like the SF9), **Schedule**, **Subjects** (materials from teachers and **My scores** per subject), and **Requests**.
 
-**How learners sign in** (Setup → Settings): LRN only (default), LRN + birthdate, or LRN + password (each learner activates their account once with their birthdate; the registrar can reset it).
+**How learners sign in** (Super Admin → Control panel): LRN only (default), LRN + birthdate, or LRN + password (each learner activates their account once with their birthdate; the registrar can reset it).
 
 ## Installable app and dark mode
 
@@ -130,13 +146,14 @@ If the phone can't open the page at all, allow Apache through Windows Firewall (
 
 ## Security
 
-- **Learner sign-in:** LRN only by default. LRNs aren't secret (they're on report cards and IDs), so anyone who knows a learner's LRN can see that learner's grades. For more protection choose LRN + birthdate or LRN + password under Setup → Settings.
+- **Learner sign-in:** LRN only by default. LRNs aren't secret (they're on report cards and IDs), so anyone who knows a learner's LRN can see that learner's grades. For more protection, the Super Admin can choose LRN + birthdate or LRN + password in the control panel.
 - **QR cards:** each card holds a random secret code, not the LRN, so nobody can make a card for someone else. Reissuing a card turns off the old one. After each scan the teacher's screen shows the learner's name and photo.
 - **Who can see what:** parents only see learners linked to their account (linking needs the LRN **and** the link code; sign-up locks after 5 wrong codes). Teachers only see their own classes and advisory. Learners only see their own records and their section's materials. Messages are only visible to the parent and the staff member in the conversation. Every page and every file download checks this.
 - **Uploaded files** (excuse letters, materials, photos) are checked for type and size, stored outside `public/` under random names, and only sent after a permission check.
 - **Locked grades:** after a quarter's deadline, grades change only through an approved change request, and every change is recorded in the grade history.
 - **Lockouts:** sign-ins lock for 15 minutes after 5 failed tries for the same account, or 20 from one IP address.
-- **Deactivating** a staff or parent account signs that person out on their next click.
+- **Deactivating** an account, turning a sign-in group off, maintenance mode, "sign out" and "sign everyone out" (Super Admin) all take effect on that person's next click.
+- **Sign-in history:** every attempt is recorded with the time, device and IP address (Super Admin → Activity log).
 - **Code safeguards:** prepared statements for every query, a CSRF token on every form and scan, HTML-escaped output, `password_hash` passwords, pages not cached, and no framing (clickjacking protection).
 - Only `public/` is reachable from the browser.
 - **Inactivity sign-out:** learners after 15 minutes, staff and parents after 60.
@@ -174,7 +191,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 ## Before using it for real
 
 - In `config/config.php`, set `debug` to `false`.
-- Run `php database/install.php` **without** `--seed` on a new database, and sign in as `admin` with the printed password. Fill in **Setup → Settings**.
+- Run `php database/install.php` **without** `--seed` on a new database, and sign in as `admin` (the Super Admin) with the printed password. Fill in **Setup → Settings**, check the **Control panel**, and create a separate Admin account for the registrar.
 - **Parents at home** can only reach the portal if it is online. A XAMPP server on a school PC is only reachable on the school network. Put the portal on web hosting that supports PHP and MySQL (with HTTPS), or ask your IT person to make the school server reachable. Set the *Portal address for parents* setting; it is printed on parent link slips.
 - Set up regular backups (Setup → Backup).
 
@@ -182,9 +199,10 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–005), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–006), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
-                      grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups
+                      grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
+                      Super Admin switches and logs (Access.php)
 templates/            page header/footer and shared page parts
 storage/              uploaded files and server backups (not reachable from the browser)
 public/               the pages
@@ -194,6 +212,7 @@ public/               the pages
   teacher/                    classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
   parent/                     parent sign-up, sign-in, dashboard, child page, notifications, excuse letters
   admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles, backup
+  superadmin/                 control panel, accounts & sign-in, activity log
   print/                      SF9, SF10, certificates
   messages.php, requests.php, news.php, privacy.php, file.php
   manifest.webmanifest, sw.js, offline.html   installable app

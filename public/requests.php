@@ -20,6 +20,7 @@ if (current_parent()) {
     $requesterId = (int) $student['id'];
     $children = [$student];
 }
+Access::requireModule('requests');
 $childIds = array_map('intval', array_column($children, 'id'));
 $error = null;
 $form = ['student_id' => $childIds[0] ?? 0, 'doc_type' => 'enrollment', 'purpose' => '', 'copies' => 1];

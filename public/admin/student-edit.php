@@ -29,17 +29,21 @@ $errors = [];
 
 if (is_post() && post('action') === 'reissue_qr') {
     db_exec('UPDATE students SET qr_token = ? WHERE id = ?', [new_qr_token(), $studentId]);
+    Access::log('account', 'Reissued the QR card of ' . student_name($student), 'learner', $studentId);
     flash('success', 'A new QR card code was made. The old card no longer works. Print the new card below.');
     redirect($here);
 }
 if (is_post() && post('action') === 'new_parent_code') {
     db_exec('UPDATE students SET parent_code = ? WHERE id = ?', [new_parent_code(), $studentId]);
+    Access::log('account', 'Made a new parent link code for ' . student_name($student), 'learner', $studentId);
     flash('success', 'A new parent link code was made. The old code no longer works; parents already linked stay linked.');
     redirect($here);
 }
 if (is_post() && post('action') === 'reset_password') {
     db_exec('UPDATE students SET password_hash = NULL WHERE id = ?', [$studentId]);
     db_exec("DELETE FROM login_attempts WHERE scope = 'student' AND identifier = ?", [$student['lrn']]);
+    Access::signOut('learner', $studentId);
+    Access::log('account', 'Cleared the password of ' . student_name($student), 'learner', $studentId);
     flash('success', 'Password cleared. The learner activates the account again with their LRN and birthdate.');
     redirect($here);
 }

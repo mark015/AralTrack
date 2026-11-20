@@ -4,6 +4,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $student = require_student();
+Access::requireModule('class_record');
 $studentId = (int) $student['id'];
 $section = current_section_of($studentId);
 $class = ($classId = get_int('class')) ? class_info($classId) : null;
@@ -51,7 +52,7 @@ require APP_ROOT . '/templates/header.php';
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                         <h2 class="h6 mb-0">Quarter <?= $q ?></h2>
-                        <?php if (isset($published[$q]) && isset($grades[$q])): ?>
+                        <?php if (isset($published[$q]) && isset($grades[$q]) && Access::learnersSeeGrades()): ?>
                             <span class="badge text-bg-success fs-6">Grade <?= e(format_grade($grades[$q])) ?></span>
                         <?php else: ?>
                             <span class="badge text-bg-secondary">Grade not yet released</span>

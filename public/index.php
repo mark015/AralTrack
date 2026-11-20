@@ -21,7 +21,9 @@ if (is_post()) {
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
     $ip = client_ip();
 
-    if (!is_valid_lrn($lrn)) {
+    if (!Access::loginOpen('learner')) {
+        $error = Access::closedMessage('learner');
+    } elseif (!is_valid_lrn($lrn)) {
         $error = 'Enter your 12-digit LRN.';
     } elseif ($askBirthdate && !valid_ymd($birthdate)) {
         $error = 'Enter your birthdate.';
@@ -29,8 +31,9 @@ if (is_post()) {
         $error = 'Enter your password.';
     } elseif (RateLimiter::isLocked('student', $lrn, $ip)) {
         $error = 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.';
+        Access::logLogin('learner', null, $lrn, false, 'locked');
     } else {
-        $student = db_one('SELECT id, birthdate, password_hash FROM students WHERE lrn = ?', [$lrn]);
+        $student = db_one('SELECT id, birthdate, password_hash, login_blocked, blocked_reason FROM students WHERE lrn = ?', [$lrn]);
         if ($askPassword && $student && $student['password_hash'] === null) {
             $needsActivation = true;
         } else {
@@ -39,12 +42,19 @@ if (is_post()) {
                 'lrn_birthdate' => $student !== null && hash_equals($student['birthdate'], $birthdate),
                 default => $student !== null,
             };
-            if ($matches) {
+            if ($matches && $student['login_blocked']) {
+                $error = 'Your access to the portal was turned off by the school.' . ($student['blocked_reason'] ? ' Reason: ' . $student['blocked_reason'] . '.' : '') . ' Please talk to your adviser.';
+                Access::logLogin('learner', (int) $student['id'], $lrn, false, 'turned off');
+            } elseif ($matches) {
                 RateLimiter::clear('student', $lrn);
                 login_student((int) $student['id']);
+                Access::logLogin('learner', (int) $student['id'], $lrn, true);
                 redirect('learner/index.php');
             }
+        }
+        if (!$error && !$needsActivation) {
             RateLimiter::recordFailure('student', $lrn, $ip);
+            Access::logLogin('learner', $student ? (int) $student['id'] : null, $lrn, false, 'no match');
             // With a birthdate or password, the same message whether or not the LRN exists, so the form can't discover LRNs.
             $error = match ($mode) {
                 'password' => 'The LRN and password do not match.',
@@ -54,6 +64,7 @@ if (is_post()) {
         }
     }
 }
+$learnersClosed = !Access::loginOpen('learner');
 
 $sy = active_school_year();
 $title = 'Check your grades';
@@ -99,7 +110,9 @@ require APP_ROOT . '/templates/header.php';
                             </div>
                         </div>
 
-                        <?php if ($error): ?>
+                        <?php if ($learnersClosed): ?>
+                            <div class="alert alert-warning" role="status"><i class="bi bi-slash-circle" aria-hidden="true"></i><div><?= e(Access::closedMessage('learner')) ?></div></div>
+                        <?php elseif ($error): ?>
                             <div class="alert alert-danger" role="alert"><i class="bi bi-x-octagon-fill" aria-hidden="true"></i><div><?= e($error) ?></div></div>
                         <?php endif; ?>
                         <?php if ($needsActivation): ?>
@@ -107,6 +120,7 @@ require APP_ROOT . '/templates/header.php';
                                 <div>Your account isn't activated yet. <a class="fw-semibold" href="<?= e(url('learner/activate.php?lrn=' . $lrn)) ?>">Activate it with your birthdate</a> and choose a password.</div></div>
                         <?php endif; ?>
 
+                        <?php if (!$learnersClosed): ?>
                         <form method="post" action="<?= e(url('index.php')) ?>">
                             <?= csrf_field() ?>
                             <div class="mb-3">
@@ -134,6 +148,7 @@ require APP_ROOT . '/templates/header.php';
                                 View my grades <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
                             </button>
                         </form>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

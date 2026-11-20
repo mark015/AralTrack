@@ -6,6 +6,7 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
 $class = teacher_class_or_abort(get_int('id'), $staff);
+Access::requireModule('class_record');
 $classId = (int) $class['id'];
 $quarters = class_quarters($class);
 $quarter = class_quarter_or_abort($class, get_int('q') ?: $quarters[0]);
@@ -136,6 +137,10 @@ if (is_post()) {
     }
 
     if ($action === 'apply') {
+        if (!Access::gradeEncodingOpen()) {
+            flash('warning', 'Grade encoding is turned off by the school right now, so computed grades can\'t be copied to the grade sheet.');
+            redirect($here);
+        }
         $saved = class_grades($classId);
         $changes = [];
         foreach ($roster as $student) {
@@ -378,7 +383,7 @@ require APP_ROOT . '/templates/header.php';
                     <?php if ($blankCells): ?><br><i class="bi bi-exclamation-triangle text-warning"></i> <?= $blankCells ?> blank score<?= $blankCells === 1 ? '' : 's' ?> in items already given (counted as 0). Save your scores before copying.<?php endif; ?>
                 </p>
             </div>
-            <?php if (!$locked): ?>
+            <?php if (!$locked && Access::gradeEncodingOpen()): ?>
                 <form method="post" action="<?= e(url($here)) ?>" class="m-0">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="apply">

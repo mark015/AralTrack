@@ -23,6 +23,7 @@ require __DIR__ . '/AtRisk.php';
 require __DIR__ . '/Schedule.php';
 require __DIR__ . '/News.php';
 require __DIR__ . '/Navigation.php';
+require __DIR__ . '/Access.php';
 foreach (['Forms', 'FormSheets', 'Messages', 'DocumentRequests', 'ClassRecord', 'Backup'] as $optional) {
     if (is_file(__DIR__ . "/{$optional}.php")) {
         require __DIR__ . "/{$optional}.php";

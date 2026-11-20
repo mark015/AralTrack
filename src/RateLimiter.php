@@ -42,4 +42,18 @@ final class RateLimiter
     {
         db_exec('DELETE FROM login_attempts WHERE scope = ? AND identifier = ?', [$scope, $identifier]);
     }
+
+    /**
+     * Identifiers in a scope that are locked right now (too many failures for that account).
+     * @return array<string, true>
+     */
+    public static function lockedIdentifiers(string $scope): array
+    {
+        $since = date('Y-m-d H:i:s', time() - (int) config('login_window_min') * 60);
+        $rows = db_all(
+            'SELECT identifier FROM login_attempts WHERE scope = ? AND attempted_at > ? GROUP BY identifier HAVING COUNT(*) >= ?',
+            [$scope, $since, (int) config('login_max_per_id')]
+        );
+        return array_fill_keys(array_column($rows, 'identifier'), true);
+    }
 }

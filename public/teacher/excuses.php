@@ -4,6 +4,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
+Access::requireModule('excuses');
 $all = sees_all_learners($staff);
 $sections = advised_section_ids($staff);
 if (!$all && !$sections) {

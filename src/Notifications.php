@@ -9,6 +9,9 @@ final class Notifications
 {
     public static function late(array $student, array $session, int $scannedAt): void
     {
+        if (!Access::on('attendance')) {
+            return;
+        }
         $message = sprintf(
             '%s was late to %s: arrived %s, class started %s.',
             $student['first_name'],
@@ -21,6 +24,9 @@ final class Notifications
 
     public static function changed(array $student, array $session, ?string $old, string $new, string $note): void
     {
+        if (!Access::on('attendance')) {
+            return;
+        }
         $message = sprintf(
             "%s's attendance in %s on %s was changed from %s to %s.",
             $student['first_name'],
@@ -38,6 +44,9 @@ final class Notifications
     /** One notification per absent learner in a finished session. */
     public static function absences(array $session): void
     {
+        if (!Access::on('attendance')) {
+            return;
+        }
         db_exec(
             "INSERT INTO parent_notifications (parent_id, student_id, type, message, link)
              SELECT ps.parent_id, ps.student_id, 'absent',
@@ -59,6 +68,9 @@ final class Notifications
     /** When a teacher publishes a quarter: parents of learners who have a grade in it. */
     public static function gradesReleased(array $class, int $quarter): void
     {
+        if (!Access::parentsSeeGrades()) {
+            return;
+        }
         db_exec(
             "INSERT INTO parent_notifications (parent_id, student_id, type, message, link)
              SELECT ps.parent_id, ps.student_id, 'grades', ?, CONCAT('parent/child.php?tab=grades&id=', ps.student_id)

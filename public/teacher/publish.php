@@ -7,6 +7,10 @@ if (!is_post()) {
 }
 $staff = require_staff();
 $class = teacher_class_or_abort(post_int('id'), $staff);
+if (!Access::gradeEncodingOpen()) {
+    flash('warning', 'Grade encoding is turned off by the school right now, so grades are read-only.');
+    redirect('teacher/class.php?id=' . $class['id']);
+}
 $quarter = class_quarter_or_abort($class, post_int('q'));
 
 if (post('action') === 'publish') {

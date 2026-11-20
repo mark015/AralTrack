@@ -2,7 +2,7 @@
 /**
  * Creates the database and its tables. Run from the project folder:
  *
- *   php database/install.php            tables + an "admin" account with a random password
+ *   php database/install.php            tables + an "admin" Super Admin account with a random password
  *   php database/install.php --seed     tables + demo staff, learners, grades, parents and attendance
  *   php database/install.php --fresh    delete the database first — ALL DATA IS LOST
  *   --db=NAME                           use another database name than config/config.php (e.g. for a test copy)
@@ -94,8 +94,8 @@ if ($seed) {
 } else {
     $password = bin2hex(random_bytes(6));
     $pdo->prepare('INSERT INTO users (username, password_hash, full_name, role, must_change_password) VALUES (?, ?, ?, ?, 1)')
-        ->execute(['admin', password_hash($password, PASSWORD_DEFAULT), 'Administrator', 'admin']);
-    echo "\nAdmin account (you will be asked to change the password at first sign-in):\n";
+        ->execute(['admin', password_hash($password, PASSWORD_DEFAULT), 'Administrator', 'superadmin']);
+    echo "\nSuper Admin account (you will be asked to change the password at first sign-in):\n";
     echo "  username: admin\n  password: {$password}\n";
 }
 echo "\nOpen http://localhost" . config('base_url') . "/\n";

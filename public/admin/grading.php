@@ -7,7 +7,7 @@ $sy = active_school_year();
 $here = 'admin/grading.php';
 
 if (is_post()) {
-    if (post('action') === 'deadlines' && $sy && $staff['role'] === 'admin') {
+    if (post('action') === 'deadlines' && $sy && is_admin($staff)) {
         foreach (QUARTERS_ALL as $q) {
             $date = post('q' . $q);
             if ($date === '') {
@@ -19,6 +19,7 @@ if (is_post()) {
                 );
             }
         }
+        Access::log('grades', 'Saved the grading deadlines for S.Y. ' . $sy['label'], 'school_year', (int) $sy['id']);
         flash('success', 'Deadlines saved. Each quarter locks the day after its deadline.');
     } elseif (in_array(post('action'), ['approve', 'reject'], true)) {
         $request = db_one("SELECT * FROM grade_change_requests WHERE id = ? AND status = 'pending'", [post_int('id')]);
@@ -27,12 +28,14 @@ if (is_post()) {
             flash('warning', 'That request was already reviewed.');
         } elseif (post('action') === 'approve') {
             Grading::approve($request, $staff['id'], $note);
+            Access::log('grades', 'Approved a grade change request (Q' . $request['quarter'] . ': ' . format_grade($request['old_grade']) . ' → ' . ($request['new_grade'] === null ? 'removed' : format_grade($request['new_grade'])) . ')', 'grade_request', (int) $request['id']);
             flash('success', 'Approved. The grade was changed and recorded in the grade history.');
         } else {
             db_exec(
                 "UPDATE grade_change_requests SET status = 'rejected', reviewed_by = ?, reviewed_at = ?, review_note = ? WHERE id = ?",
                 [$staff['id'], date('Y-m-d H:i:s'), $note ?: null, $request['id']]
             );
+            Access::log('grades', 'Rejected a grade change request (Q' . $request['quarter'] . ')', 'grade_request', (int) $request['id']);
             flash('info', 'Request rejected. The teacher sees your note on the class page.');
         }
     }
@@ -77,12 +80,12 @@ require APP_ROOT . '/templates/header.php';
                         <?php foreach (QUARTERS_ALL as $q): ?>
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <label class="form-label mb-0" style="width: 6rem" for="q<?= $q ?>">Quarter <?= $q ?></label>
-                                <input class="form-control form-control-sm" type="date" id="q<?= $q ?>" name="q<?= $q ?>" value="<?= e($deadlines[$q] ?? '') ?>" <?= $staff['role'] === 'admin' ? '' : 'disabled' ?>>
+                                <input class="form-control form-control-sm" type="date" id="q<?= $q ?>" name="q<?= $q ?>" value="<?= e($deadlines[$q] ?? '') ?>" <?= is_admin($staff) ? '' : 'disabled' ?>>
                                 <?php if (Grading::isLocked((int) $sy['id'], $q)): ?><i class="bi bi-lock-fill text-danger" title="Locked"></i><?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                         <p class="small text-secondary">Leave a date blank for no deadline. Q1–Q2 are 1st semester, Q3–Q4 are 2nd semester.</p>
-                        <?php if ($staff['role'] === 'admin'): ?><button class="btn btn-primary btn-sm">Save deadlines</button><?php endif; ?>
+                        <?php if (is_admin($staff)): ?><button class="btn btn-primary btn-sm">Save deadlines</button><?php endif; ?>
                     </form>
                 <?php endif; ?>
             </div>

@@ -6,6 +6,7 @@ $student = require_student();
 $studentId = (int) $student['id'];
 $section = current_section_of($studentId);
 $semester = (int) setting('current_semester');
+$attendanceOn = Access::on('attendance');
 
 $today = [];
 $month = array_fill_keys(array_keys(ATTENDANCE_STATUSES), 0);
@@ -41,7 +42,7 @@ require APP_ROOT . '/templates/header.php';
         </div>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-primary" href="<?= e(url('grades.php')) ?>"><i class="bi bi-journal-text me-1"></i>Report card</a>
+        <?php if (Access::learnersSeeGrades()): ?><a class="btn btn-primary" href="<?= e(url('grades.php')) ?>"><i class="bi bi-journal-text me-1"></i>Report card</a><?php endif; ?>
         <a class="btn btn-outline-primary" href="<?= e(url('learner/schedule.php')) ?>"><i class="bi bi-calendar-week me-1"></i>My schedule</a>
     </div>
 </div>
@@ -59,7 +60,7 @@ require APP_ROOT . '/templates/header.php';
                             <li class="<?= e($mark['status'] ?? 'pending') ?>">
                                 <span><span class="text-secondary"><?= e(Schedule::time($slot['starts_at'])) ?></span> · <?= e($slot['subject_name']) ?>
                                     <span class="small text-secondary"><?= $slot['room'] ? '· Room ' . e($slot['room']) : '' ?></span></span>
-                                <span><?= $mark && $mark['status'] ? attendance_badge($mark['status']) : '<span class="small text-secondary">—</span>' ?></span>
+                                <?php if ($attendanceOn): ?><span><?= $mark && $mark['status'] ? attendance_badge($mark['status']) : '<span class="small text-secondary">—</span>' ?></span><?php endif; ?>
                             </li>
                         <?php endforeach; ?>
                     </ul>
@@ -67,6 +68,7 @@ require APP_ROOT . '/templates/header.php';
             </div>
         </div>
     </div>
+    <?php if ($attendanceOn): ?>
     <div class="col-lg-5">
         <div class="card h-100">
             <div class="card-body d-flex align-items-center gap-4">
@@ -85,6 +87,7 @@ require APP_ROOT . '/templates/header.php';
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php $newsViewer = 'families'; require APP_ROOT . '/templates/news-widget.php'; ?>

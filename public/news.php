@@ -21,7 +21,8 @@ $from = $month . '-01';
 $to = date('Y-m-t', strtotime($from));
 $events = News::between($from, $to);
 $announcements = News::announcements($viewer, 50);
-$canEdit = $staff && in_array($staff['role'], ['admin', 'principal'], true);
+Access::requireModule('news');
+$canEdit = $staff && (is_admin($staff) || $staff['role'] === 'principal');
 
 $title = 'Announcements and calendar';
 require APP_ROOT . '/templates/header.php';

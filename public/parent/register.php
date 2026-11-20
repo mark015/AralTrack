@@ -5,6 +5,14 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 if (current_parent()) {
     redirect('parent/index.php');
 }
+if (!Access::parentRegistrationOpen()) {
+    Access::stopPage(
+        'New parent accounts are closed',
+        Access::loginOpen('parent')
+            ? 'The school is not accepting new parent accounts right now. If you already have an account, sign in. Otherwise, ask the registrar.'
+            : Access::closedMessage('parent')
+    );
+}
 
 $form = ['full_name' => '', 'login' => '', 'lrn' => '', 'code' => '', 'relationship' => 'mother'];
 $errors = [];
@@ -69,6 +77,7 @@ if (is_post()) {
         }
         if (!$errors) {
             login_parent(['id' => $parentId, 'full_name' => $form['full_name']]);
+            Access::logLogin('parent', $parentId, (string) normalize_parent_login($form['login']), true, 'registered');
             flash('success', "Your account is ready. {$student['first_name']}'s attendance and grades are below.");
             redirect('parent/index.php');
         }

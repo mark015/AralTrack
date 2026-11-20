@@ -26,12 +26,16 @@ $classId = (int) $class['id'];
     <li class="nav-item">
         <a class="nav-link<?= $activeTab === 'grades' ? ' active" aria-current="page' : '' ?>" href="<?= e(url('teacher/class.php?id=' . $classId)) ?>"><i class="bi bi-journal-check"></i>Grades</a>
     </li>
+    <?php if (Access::on('attendance')): ?>
     <li class="nav-item">
         <a class="nav-link<?= $activeTab === 'attendance' ? ' active" aria-current="page' : '' ?>" href="<?= e(url('teacher/attendance.php?id=' . $classId)) ?>"><i class="bi bi-qr-code-scan"></i>Attendance</a>
     </li>
+    <?php endif; ?>
+    <?php if (Access::on('materials')): ?>
     <li class="nav-item">
         <a class="nav-link<?= $activeTab === 'posts' ? ' active" aria-current="page' : '' ?>" href="<?= e(url('teacher/posts.php?id=' . $classId)) ?>"><i class="bi bi-folder2-open"></i>Materials</a>
     </li>
+    <?php endif; ?>
     <li class="nav-item">
         <a class="nav-link<?= $activeTab === 'schedule' ? ' active" aria-current="page' : '' ?>" href="<?= e(url('teacher/schedule-edit.php?id=' . $classId)) ?>"><i class="bi bi-clock"></i>Schedule</a>
     </li>

@@ -78,7 +78,7 @@ if ($studentId = get_int('id')) {
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <?php if ($staff['role'] === 'admin'): ?><a class="btn btn-outline-primary" href="<?= e(url('admin/student-edit.php?id=' . $studentId)) ?>"><i class="bi bi-pencil me-1"></i>Edit</a><?php endif; ?>
+            <?php if (is_admin($staff)): ?><a class="btn btn-outline-primary" href="<?= e(url('admin/student-edit.php?id=' . $studentId)) ?>"><i class="bi bi-pencil me-1"></i>Edit</a><?php endif; ?>
             <a class="btn btn-outline-primary" href="<?= e(url('print/sf10.php?student=' . $studentId)) ?>" target="_blank"><i class="bi bi-printer me-1"></i>SF10</a>
         </div>
     </div>
@@ -114,7 +114,7 @@ if ($studentId = get_int('id')) {
                                 <div class="fw-semibold small"><?= e($p['full_name']) ?></div>
                                 <div class="small text-secondary"><?= e(RELATIONSHIPS[$p['relationship']] ?? $p['relationship']) ?><?= $p['is_active'] ? '' : ' · deactivated' ?></div>
                             </div>
-                            <a class="btn btn-sm btn-outline-primary" href="<?= e(url('messages.php?new=1&to=' . $studentId . ':' . $p['id'])) ?>" title="Send a message"><i class="bi bi-chat-dots"></i></a>
+                            <?php if (Access::on('messages')): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('messages.php?new=1&to=' . $studentId . ':' . $p['id'])) ?>" title="Send a message"><i class="bi bi-chat-dots"></i></a><?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>

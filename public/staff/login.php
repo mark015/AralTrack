@@ -19,21 +19,33 @@ if (is_post()) {
         $error = 'Enter your username and password.';
     } elseif (RateLimiter::isLocked('staff', $key, $ip)) {
         $error = 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.';
+        Access::logLogin('staff', null, $username, false, 'locked');
     } else {
         $user = db_one('SELECT * FROM users WHERE username = ?', [$username]);
         $passwordOk = password_verify($password, $user['password_hash'] ?? DUMMY_PASSWORD_HASH);
-        if ($user && $passwordOk && $user['is_active']) {
+        if ($user && $passwordOk && !$user['is_active']) {
+            // Only after the right password, so the form can't be used to find out which accounts exist.
+            $error = 'Your account was turned off by the school.' . ($user['blocked_reason'] ? ' Reason: ' . $user['blocked_reason'] . '.' : '') . ' Please contact the Super Admin.';
+            Access::logLogin('staff', (int) $user['id'], $username, false, 'turned off');
+        } elseif ($user && $passwordOk && $user['role'] !== 'superadmin' && !Access::loginOpen('staff')) {
+            $error = Access::closedMessage('staff');
+            Access::logLogin('staff', (int) $user['id'], $username, false, Access::maintenance() ? 'maintenance' : 'sign-in off');
+        } elseif ($user && $passwordOk) {
             RateLimiter::clear('staff', $key);
             if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
                 db_exec('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $user['id']]);
             }
             login_staff($user);
+            Access::logLogin('staff', (int) $user['id'], $username, true);
             redirect($user['must_change_password'] ? 'staff/password.php' : home_for(current_staff()));
+        } else {
+            RateLimiter::recordFailure('staff', $key, $ip);
+            Access::logLogin('staff', $user ? (int) $user['id'] : null, $username, false, 'wrong password');
+            $error = 'Incorrect username or password.';
         }
-        RateLimiter::recordFailure('staff', $key, $ip);
-        $error = 'Incorrect username or password.';
     }
 }
+$closedNotice = Access::loginOpen('staff') ? null : Access::closedMessage('staff') . ' Only the Super Admin can sign in.';
 
 $title = 'Staff sign-in';
 require APP_ROOT . '/templates/header.php';
@@ -45,6 +57,9 @@ require APP_ROOT . '/templates/header.php';
                 <div class="auth-icon"><i class="bi bi-person-badge" aria-hidden="true"></i></div>
                 <h1 class="h4 mb-1">Staff sign-in</h1>
                 <p class="text-secondary small mb-4">For teachers, advisers and the registrar.</p>
+                <?php if ($closedNotice): ?>
+                    <div class="alert alert-warning" role="status"><i class="bi bi-slash-circle" aria-hidden="true"></i><div><?= e($closedNotice) ?></div></div>
+                <?php endif; ?>
                 <?php if ($error): ?>
                     <div class="alert alert-danger" role="alert"><?= e($error) ?></div>
                 <?php endif; ?>

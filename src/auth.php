@@ -23,15 +23,23 @@ function staff_session(array $user): array
 }
 
 const STAFF_ROLES = [
+    'superadmin' => 'Super Admin',
     'admin'     => 'Admin · Registrar',
     'teacher'   => 'Teacher',
     'principal' => 'Principal',
     'guidance'  => 'Guidance counselor',
 ];
 
+/** Admin (registrar) or Super Admin: both run the school's records. */
+function is_admin(array $staff): bool
+{
+    return in_array($staff['role'], ['admin', 'superadmin'], true);
+}
+
 function home_for(array $staff): string
 {
     return match ($staff['role']) {
+        'superadmin' => is_file(APP_ROOT . '/public/superadmin/index.php') ? 'superadmin/index.php' : 'admin/index.php',
         'admin' => 'admin/index.php',
         'principal' => is_file(APP_ROOT . '/public/admin/reports.php') ? 'admin/reports.php' : 'teacher/index.php',
         'guidance' => 'teacher/at-risk.php',
@@ -40,16 +48,24 @@ function home_for(array $staff): string
 }
 
 /**
- * Stops unless a staff member is signed in (and has one of $roles, when given).
- * Re-reads the account each time so a deactivated account is locked out at once.
+ * Stops unless a staff member is signed in (and has one of $roles, when given; the Super Admin may open
+ * every staff page). Re-reads the account each time, so a deactivated account, "sign out now" or staff
+ * sign-in being turned off takes effect on the next click.
  */
 function require_staff(string ...$roles): array
 {
     $id = $_SESSION['staff']['id'] ?? null;
     $user = $id ? db_one('SELECT * FROM users WHERE id = ?', [$id]) : null;
-    if (!$user || !$user['is_active']) {
-        unset($_SESSION['staff']);
-        flash('warning', 'Please sign in to continue.');
+    $message = match (true) {
+        !$user => 'Please sign in to continue.',
+        !$user['is_active'] => 'Your account was turned off by the school.',
+        Access::sessionRevoked('staff', $user) => 'You were signed out by the school. Please sign in again.',
+        $user['role'] !== 'superadmin' && !Access::loginOpen('staff') => Access::closedMessage('staff'),
+        default => null,
+    };
+    if ($message !== null) {
+        unset($_SESSION['staff'], $_SESSION['grade_import']);
+        flash('warning', $message);
         redirect('staff/login.php');
     }
     $_SESSION['staff'] = staff_session($user);
@@ -59,7 +75,7 @@ function require_staff(string ...$roles): array
         flash('warning', 'Please choose a new password before continuing.');
         redirect('staff/password.php');
     }
-    if ($roles && !in_array($user['role'], $roles, true)) {
+    if ($roles && $user['role'] !== 'superadmin' && !in_array($user['role'], $roles, true)) {
         abort(403, 'Your account cannot open this page.');
     }
     return $_SESSION['staff'];
@@ -69,6 +85,7 @@ function login_staff(array $user): void
 {
     session_regenerate_id(true);
     $_SESSION['staff'] = staff_session($user);
+    Access::stampSession('staff', (int) ($user['session_version'] ?? 0));
 }
 
 function logout_staff(): void
@@ -84,14 +101,24 @@ function current_parent(): ?array
     return $_SESSION['parent'] ?? null;
 }
 
-/** Stops unless a parent is signed in. Re-reads the account so a deactivated one is locked out at once. */
+/**
+ * Stops unless a parent is signed in. Re-reads the account, so a deactivated account, "sign out now" or
+ * parent sign-in being turned off takes effect at once.
+ */
 function require_parent(): array
 {
     $id = $_SESSION['parent']['id'] ?? null;
     $parent = $id ? db_one('SELECT * FROM parents WHERE id = ?', [$id]) : null;
-    if (!$parent || !$parent['is_active']) {
+    $message = match (true) {
+        !$parent => 'Please sign in to continue.',
+        !$parent['is_active'] => 'Your account was turned off by the school.',
+        Access::sessionRevoked('parent', $parent) => 'You were signed out by the school. Please sign in again.',
+        !Access::loginOpen('parent') => Access::closedMessage('parent'),
+        default => null,
+    };
+    if ($message !== null) {
         unset($_SESSION['parent']);
-        flash('warning', 'Please sign in to continue.');
+        flash('warning', $message);
         redirect('parent/login.php');
     }
     $_SESSION['parent'] = ['id' => (int) $parent['id'], 'full_name' => $parent['full_name']];
@@ -108,6 +135,7 @@ function login_parent(array $parent): void
 {
     session_regenerate_id(true);
     $_SESSION['parent'] = ['id' => (int) $parent['id'], 'full_name' => $parent['full_name']];
+    Access::stampSession('parent', (int) ($parent['session_version'] ?? 0));
 }
 
 function logout_parent(): void
@@ -132,14 +160,21 @@ function parent_child_or_abort(array $parent, int $studentId): array
 
 // ---------------------------------------------------------------- learners
 
-/** The signed-in learner's record, or back to the sign-in page. */
+/** The signed-in learner's record, or back to the sign-in page (also when access was turned off). */
 function require_student(): array
 {
     $id = current_student_id();
     $student = $id !== null ? db_one('SELECT * FROM students WHERE id = ?', [$id]) : null;
-    if (!$student) {
+    $message = match (true) {
+        !$student => 'Please sign in to continue.',
+        (bool) ($student['login_blocked'] ?? false) => 'Your access to the portal was turned off by the school. Please talk to your adviser.',
+        Access::sessionRevoked('learner', $student) => 'You were signed out by the school. Please sign in again.',
+        !Access::loginOpen('learner') => Access::closedMessage('learner'),
+        default => null,
+    };
+    if ($message !== null) {
         logout_student();
-        flash('warning', 'Please sign in to continue.');
+        flash('warning', $message);
         redirect('index.php');
     }
     return $student;
@@ -168,6 +203,7 @@ function login_student(int $studentId): void
 {
     session_regenerate_id(true);
     $_SESSION['student_id'] = $studentId;
+    Access::stampSession('learner', (int) db_value('SELECT session_version FROM students WHERE id = ?', [$studentId]));
 }
 
 function logout_student(): void

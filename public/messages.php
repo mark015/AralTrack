@@ -16,6 +16,7 @@ if (current_staff()) {
     redirect('parent/login.php');
 }
 $myId = (int) $me['id'];
+Access::requireModule('messages');
 $error = null;
 $form = ['to' => post('to') ?: get_str('to'), 'subject' => '', 'body' => ''];
 const MESSAGE_MAX = 2000;

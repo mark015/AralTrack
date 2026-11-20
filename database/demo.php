@@ -11,6 +11,7 @@ const DEMO_SUMMARY = <<<TXT
 Demo data added (Senior High, S.Y. 2025-2026 and 2026-2027, 20 learners, grades, 2 weeks of attendance).
 
 Staff sign-in (http://localhost/student-portal/staff/login.php)
+  superadmin / super123  Super Admin: control panel (parts of the portal, sign-in), accounts, activity log
   admin    / admin123     registrar (admin)
   msantos  / teacher123   teacher: math and science subjects; adviser of Grade 12 STEM – Einstein
   jreyes   / teacher123   teacher: language, social science and PE subjects; adviser of Grade 11 STEM – Newton
@@ -32,6 +33,7 @@ function seed_demo_school(PDO $pdo): void
 {
     $staff = [
         // username, password, full name, role
+        ['superadmin', 'super123', 'System Administrator', 'superadmin'],
         ['admin', 'admin123', 'School Registrar', 'admin'],
         ['msantos', 'teacher123', 'Maria Santos', 'teacher'],
         ['jreyes', 'teacher123', 'Jose Reyes', 'teacher'],
@@ -301,7 +303,7 @@ function seed_demo_attendance(PDO $pdo): bool
 function seed_demo_extras(PDO $pdo): void
 {
     $syId = (int) $pdo->query('SELECT id FROM school_years WHERE is_active = 1')->fetchColumn();
-    $adminId = (int) $pdo->query("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")->fetchColumn() ?: null;
+    $adminId = (int) $pdo->query("SELECT id FROM users WHERE role IN ('admin', 'superadmin') ORDER BY id LIMIT 1")->fetchColumn() ?: null;
     if (!$syId) {
         return;
     }

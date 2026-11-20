@@ -4,6 +4,7 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
 $class = teacher_class_or_abort(get_int('id'), $staff);
+Access::requireModule('attendance');
 $classId = (int) $class['id'];
 $here = 'teacher/attendance.php?id=' . $classId;
 

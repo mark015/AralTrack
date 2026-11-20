@@ -21,6 +21,7 @@ if (is_post()) {
             }
             try {
                 db_exec('UPDATE parents SET full_name = ?, login = ? WHERE id = ?', [$name, $login, $parentId]);
+                Access::log('account', "Updated the parent account of {$name}", 'parent', $parentId, ['full_name' => [$parent['full_name'], $name], 'login' => [$parent['login'], $login]]);
                 flash('success', 'Saved.');
             } catch (PDOException $e) {
                 if (!is_duplicate_error($e)) {
@@ -38,11 +39,14 @@ if (is_post()) {
             }
             db_exec('UPDATE parents SET password_hash = ?, must_change_password = 1 WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $parentId]);
             db_exec("DELETE FROM login_attempts WHERE scope = 'parent' AND identifier = ?", [$parent['login']]);
+            Access::signOut('parent', $parentId);
+            Access::log('account', "Reset the password of parent {$parent['full_name']}", 'parent', $parentId);
             flash('success', 'Password reset. They will be asked to choose a new one when they sign in.');
             break;
 
         case 'toggle':
-            db_exec('UPDATE parents SET is_active = 1 - is_active WHERE id = ?', [$parentId]);
+            db_exec('UPDATE parents SET is_active = 1 - is_active, blocked_reason = NULL WHERE id = ?', [$parentId]);
+            Access::log('account', ($parent['is_active'] ? 'Deactivated' : 'Activated') . " the parent account of {$parent['full_name']}", 'parent', $parentId);
             flash('success', $parent['is_active'] ? 'This parent can no longer sign in.' : 'This parent can sign in again.');
             break;
 
@@ -54,11 +58,16 @@ if (is_post()) {
                 break;
             }
             $added = db_exec('INSERT IGNORE INTO parent_students (parent_id, student_id, relationship) VALUES (?, ?, ?)', [$parentId, $student['id'], $relationship]);
+            if ($added) {
+                Access::log('account', "Linked " . student_name($student) . " to parent {$parent['full_name']}", 'parent', $parentId);
+            }
             flash($added ? 'success' : 'info', $added ? student_name($student) . ' linked.' : 'That learner is already linked.');
             break;
 
         case 'unlink':
+            $unlinked = db_one('SELECT * FROM students WHERE id = ?', [post_int('student_id')]);
             db_exec('DELETE FROM parent_students WHERE parent_id = ? AND student_id = ?', [$parentId, post_int('student_id')]);
+            Access::log('account', 'Unlinked ' . ($unlinked ? student_name($unlinked) : 'a learner') . " from parent {$parent['full_name']}", 'parent', $parentId);
             flash('success', 'Learner unlinked. This parent can no longer see their attendance and grades.');
             break;
     }

@@ -54,6 +54,7 @@ $events = db_all('SELECT * FROM calendar_events WHERE ends_on >= ? ORDER BY star
 $title = 'Announcements';
 require APP_ROOT . '/templates/header.php';
 ?>
+<?= Access::offNotice('news') ?>
 <div class="page-head">
     <div>
         <h1 class="h3">Announcements and calendar</h1>

@@ -15,11 +15,6 @@ $fields = [
     'late_after_minutes' => ['Late after (minutes)', 'number', 'A scan this many minutes after class starts is Late'],
     'at_risk_absences'   => ['At-risk absences', 'number', 'Absences in one subject before a learner is listed as at risk'],
 ];
-$loginModes = [
-    'lrn'           => 'LRN only (anyone who knows the LRN can see the grades)',
-    'lrn_birthdate' => 'LRN + birthdate',
-    'password'      => 'LRN + password (learners activate their account once with their birthdate)',
-];
 
 if (is_post()) {
     $values = [];
@@ -31,10 +26,15 @@ if (is_post()) {
         }
         $values[$key] = $value;
     }
-    $mode = post('learner_login');
-    $values['learner_login'] = isset($loginModes[$mode]) ? $mode : 'lrn';
     $values['current_semester'] = post_int('current_semester') === 2 ? '2' : '1';
+    $before = [];
+    foreach (array_keys($values) as $key) {
+        $before[$key] = settings_cache()[$key] ?? '';
+    }
     save_settings($values);
+    if ($changes = Access::diff($before, $values)) {
+        Access::log('settings', 'Changed settings: ' . implode(', ', array_map(static fn ($k) => $fields[$k][0] ?? ($k === 'current_semester' ? 'Current semester' : $k), array_keys($changes))), 'settings', null, $changes);
+    }
     flash('success', 'Settings saved.');
     redirect('admin/settings.php');
 }
@@ -68,14 +68,15 @@ require APP_ROOT . '/templates/header.php';
         <div class="col-lg-5">
             <div class="card mb-4">
                 <div class="card-body">
-                    <h2 class="h6 mb-3"><i class="bi bi-person-lock me-2"></i>How learners sign in</h2>
-                    <?php foreach ($loginModes as $value => $label): ?>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="learner_login" id="mode-<?= e($value) ?>" value="<?= e($value) ?>" <?= setting('learner_login') === $value ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="mode-<?= e($value) ?>"><?= e($label) ?></label>
-                        </div>
-                    <?php endforeach; ?>
-                    <p class="small text-secondary mb-0">With passwords, the registrar can reset a learner's password from the learner's page.</p>
+                    <h2 class="h6 mb-2"><i class="bi bi-person-lock me-2"></i>Sign-in and parts of the portal</h2>
+                    <p class="small mb-1">Learners sign in with: <strong><?= e(Access::LEARNER_LOGIN_MODES[setting('learner_login')] ?? setting('learner_login')) ?></strong></p>
+                    <p class="small text-secondary mb-0">
+                        <?php if ($staff['role'] === 'superadmin'): ?>
+                            Change it, and turn sign-in or parts of the portal on or off, in the <a href="<?= e(url('superadmin/index.php')) ?>">control panel</a>.
+                        <?php else: ?>
+                            Sign-in and the parts of the portal (attendance, grading, messages, …) are controlled by the Super Admin.
+                        <?php endif; ?>
+                    </p>
                 </div>
             </div>
             <div class="card">

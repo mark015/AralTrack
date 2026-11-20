@@ -58,7 +58,7 @@ final class News
             [$title, $body, $audience, $pinned ? 1 : 0, $userId]
         );
         $id = (int) db()->lastInsertId();
-        if ($audience !== 'staff') {
+        if ($audience !== 'staff' && Access::on('news')) {
             db_exec(
                 "INSERT INTO parent_notifications (parent_id, student_id, type, message, link)
                  SELECT id, NULL, 'announcement', ?, ? FROM parents WHERE is_active = 1",

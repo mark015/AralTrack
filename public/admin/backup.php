@@ -11,6 +11,7 @@ if (is_post()) {
     set_time_limit(0);
 
     if ($action === 'download') {
+        Access::log('backup', 'Downloaded a database backup', null, null);
         $name = 'portal-backup-' . date('Ymd-His') . '.sql';
         header('Content-Type: application/sql; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $name . '"');
@@ -24,6 +25,7 @@ if (is_post()) {
     }
     if ($action === 'save') {
         $name = Backup::saveCopy('manual');
+        Access::log('backup', "Saved a backup on the server ({$name})", null, null);
         flash('success', "Backup saved on the server as {$name}.");
         redirect('admin/backup.php');
     }
@@ -41,6 +43,7 @@ if (is_post()) {
             exit;
         }
         unlink($path);
+        Access::log('backup', 'Deleted the backup copy ' . basename($path), null, null);
         flash('success', basename($path) . ' was deleted.');
         redirect('admin/backup.php');
     }
@@ -70,6 +73,7 @@ if (is_post()) {
                 $safety = Backup::saveCopy('before-restore');
                 try {
                     $count = Backup::restore($source);
+                    Access::log('backup', 'Restored the database from ' . ($fromServer ? basename($fromServer) : 'an uploaded file') . " (safety copy: {$safety})", null, null);
                     db_exec('DELETE FROM login_attempts');
                     flash('success', "Database restored ({$count} statements). A copy of the database from just before the restore was saved as {$safety}. If the backup came from an older version, run php database/migrate.php.");
                 } catch (UserFacingException $e) {

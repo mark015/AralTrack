@@ -111,6 +111,8 @@ if (is_post() && post('action') === 'apply' && $from && $to) {
             $done[$do]++;
         }
     }
+    Access::log('rollover', sprintf('Year-end rollover to S.Y. %s: %d promoted, %d retained, %d graduated, %d transferred out, %d dropped', $to['label'],
+        $done['promote'], $done['retain'], $done['graduate'], $done['transferred_out'], $done['dropped']), 'school_year', (int) $to['id']);
     flash('success', sprintf('Done: %d promoted, %d retained, %d graduated, %d transferred out, %d dropped.%s Make S.Y. %s active under School years when classes start.',
         $done['promote'], $done['retain'], $done['graduate'], $done['transferred_out'], $done['dropped'],
         $missing ? " {$missing} learner(s) were skipped because no section was chosen." : '', $to['label']));

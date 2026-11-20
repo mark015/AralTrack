@@ -5,7 +5,7 @@ declare(strict_types=1);
  * The top menu for each kind of user. Each item is
  *   ['label', 'icon', 'path', 'also' => [other paths that highlight it], 'badge' => n]
  * or a dropdown: ['label', 'icon', 'children' => [items…]].
- * Items whose page doesn't exist are left out.
+ * Items whose page doesn't exist, or with 'show' => false (a part turned off by the Super Admin), are left out.
  */
 final class Navigation
 {
@@ -18,20 +18,20 @@ final class Navigation
             return self::filter([
                 ['My children', 'house-heart', 'parent/index.php', 'also' => ['parent/child.php']],
                 ['Notifications', 'bell', 'parent/notifications.php', 'badge' => Notifications::unreadCount($parent['id'])],
-                ['Messages', 'chat-dots', 'messages.php', 'badge' => self::count(static fn () => Messages::unread('parent', $parent['id']))],
-                ['Excuse letters', 'envelope-paper', 'parent/excuses.php'],
-                ['Requests', 'file-earmark-text', 'requests.php'],
-                ['News', 'megaphone', 'news.php'],
+                ['Messages', 'chat-dots', 'messages.php', 'badge' => self::count(static fn () => Messages::unread('parent', $parent['id'])), 'show' => Access::on('messages')],
+                ['Excuse letters', 'envelope-paper', 'parent/excuses.php', 'show' => Access::on('excuses')],
+                ['Requests', 'file-earmark-text', 'requests.php', 'show' => Access::on('requests')],
+                ['News', 'megaphone', 'news.php', 'show' => Access::on('news')],
             ]);
         }
         if ($learner) {
             return self::filter([
                 ['Home', 'house', 'learner/index.php'],
-                ['Report card', 'journal-text', 'grades.php'],
+                ['Report card', 'journal-text', 'grades.php', 'show' => Access::learnersSeeGrades()],
                 ['Schedule', 'calendar-week', 'learner/schedule.php'],
-                ['Subjects', 'folder2-open', 'learner/subjects.php', 'also' => ['learner/scores.php']],
-                ['Requests', 'file-earmark-text', 'requests.php'],
-                ['News', 'megaphone', 'news.php'],
+                ['Subjects', 'folder2-open', 'learner/subjects.php', 'also' => ['learner/scores.php'], 'show' => Access::on('materials') || Access::on('class_record')],
+                ['Requests', 'file-earmark-text', 'requests.php', 'show' => Access::on('requests')],
+                ['News', 'megaphone', 'news.php', 'show' => Access::on('news')],
             ]);
         }
         return [];
@@ -45,61 +45,84 @@ final class Navigation
         $all = sees_all_learners($staff);
         $excuses = ($all || $adviser) ? self::count(static fn () => self::pendingExcuses($staff)) : 0;
         $messages = self::count(static fn () => Messages::unread('staff', $staff['id']));
-        $changes = in_array($role, ['admin', 'principal'], true) ? self::count(static fn () => Grading::pendingRequests()) : 0;
-        $requests = in_array($role, ['admin', 'principal'], true) ? self::count(static fn () => DocumentRequests::pending()) : 0;
+        $changes = in_array($role, ['superadmin', 'admin', 'principal'], true) ? self::count(static fn () => Grading::pendingRequests()) : 0;
+        $requests = in_array($role, ['superadmin', 'admin', 'principal'], true) ? self::count(static fn () => DocumentRequests::pending()) : 0;
+        $excusesOn = Access::on('excuses');
+        $messagesOn = Access::on('messages');
 
         $teaching = [
             ['My classes', 'easel2', 'teacher/index.php', 'also' => ['teacher/class.php', 'teacher/upload.php', 'teacher/attendance.php', 'teacher/session.php', 'teacher/posts.php', 'teacher/schedule-edit.php', 'teacher/class-record.php']],
             ['My schedule', 'calendar-week', 'teacher/schedule.php'],
             $adviser ? ['My advisory', 'clipboard-heart', 'teacher/advisory.php', 'also' => ['teacher/values.php']] : null,
-            ($adviser || $all) ? ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses] : null,
+            ($adviser || $all) ? ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses, 'show' => $excusesOn] : null,
             ['At-risk learners', 'exclamation-diamond', 'teacher/at-risk.php'],
-            ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages],
+            ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages, 'show' => $messagesOn],
+        ];
+        $messagesItem = ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages, 'show' => $messagesOn];
+        $teachingMenu = ($teaches || $adviser)
+            ? ['Teaching', 'easel2', 'children' => array_values(array_filter($teaching)), 'badge' => $messagesOn ? $messages : 0]
+            : $messagesItem;
+        $setup = [
+            ['Subjects', 'journal-bookmark', 'admin/subjects.php'],
+            ['School years', 'calendar3', 'admin/school-years.php'],
+            ['Staff accounts', 'person-badge', 'admin/users.php'],
+            ['Settings', 'sliders', 'admin/settings.php'],
+            ['Backup', 'database-down', 'admin/backup.php'],
+        ];
+        $schoolMenu = [
+            ['Dashboard', 'speedometer2', 'admin/index.php'],
+            ['Learners', 'people', 'admin/students.php', 'also' => ['admin/student-edit.php', 'admin/profiles.php']],
+            ['Sections', 'diagram-3', 'admin/sections.php', 'also' => ['admin/section.php', 'admin/timetable.php']],
+            ['Parents', 'person-hearts', 'admin/parents.php', 'also' => ['admin/parent-edit.php']],
         ];
         $records = [
             ['Grading periods & changes', 'calendar-check', 'admin/grading.php', 'badge' => $changes],
             ['Grade history', 'clock-history', 'admin/grade-history.php'],
             ['Honor roll', 'award', 'admin/honors.php'],
             ['DepEd forms', 'file-earmark-ruled', 'admin/forms.php'],
-            $role === 'admin' ? ['Year-end rollover', 'arrow-repeat', 'admin/rollover.php'] : null,
+            is_admin($staff) ? ['Year-end rollover', 'arrow-repeat', 'admin/rollover.php'] : null,
             ['Document requests', 'file-earmark-text', 'admin/requests.php', 'badge' => $requests],
             ['Reports', 'bar-chart', 'admin/reports.php'],
         ];
 
         return match ($role) {
-            'admin' => [
-                ['Dashboard', 'speedometer2', 'admin/index.php'],
-                ['Learners', 'people', 'admin/students.php', 'also' => ['admin/student-edit.php']],
-                ['Sections', 'diagram-3', 'admin/sections.php', 'also' => ['admin/section.php', 'admin/timetable.php']],
-                ['Parents', 'person-hearts', 'admin/parents.php', 'also' => ['admin/parent-edit.php']],
+            // The Super Admin's "Control" menu holds the control panel, accounts and activity log, plus Setup.
+            'superadmin' => [
+                ...$schoolMenu,
                 ['Records', 'folder2', 'children' => $records, 'badge' => $changes + $requests],
                 ['News', 'megaphone', 'admin/announcements.php', 'also' => ['news.php']],
-                ['Setup', 'gear', 'children' => [
-                    ['Subjects', 'journal-bookmark', 'admin/subjects.php'],
-                    ['School years', 'calendar3', 'admin/school-years.php'],
-                    ['Staff accounts', 'person-badge', 'admin/users.php'],
-                    ['Settings', 'sliders', 'admin/settings.php'],
-                    ['Backup', 'database-down', 'admin/backup.php'],
+                ['Control', 'shield-lock', 'children' => [
+                    ['Control panel', 'toggles', 'superadmin/index.php'],
+                    ['Accounts & sign-in', 'person-lock', 'superadmin/accounts.php'],
+                    ['Activity log', 'journal-text', 'superadmin/activity.php'],
+                    ...$setup,
                 ]],
-                ($teaches || $adviser) ? ['Teaching', 'easel2', 'children' => array_values(array_filter($teaching)), 'badge' => $messages] : ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages],
+                $teachingMenu,
+            ],
+            'admin' => [
+                ...$schoolMenu,
+                ['Records', 'folder2', 'children' => $records, 'badge' => $changes + $requests],
+                ['News', 'megaphone', 'admin/announcements.php', 'also' => ['news.php']],
+                ['Setup', 'gear', 'children' => $setup],
+                $teachingMenu,
             ],
             'principal' => [
                 ['Reports', 'bar-chart', 'admin/reports.php'],
                 ['Records', 'folder2', 'children' => $records, 'badge' => $changes + $requests],
                 ['Learners', 'people', 'admin/profiles.php'],
                 ['At-risk learners', 'exclamation-diamond', 'teacher/at-risk.php'],
-                ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses],
+                ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses, 'show' => $excusesOn],
                 ['News', 'megaphone', 'admin/announcements.php', 'also' => ['news.php']],
-                $teaches ? ['Teaching', 'easel2', 'children' => array_values(array_filter($teaching)), 'badge' => $messages] : ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages],
+                $teaches ? $teachingMenu : $messagesItem,
             ],
             'guidance' => [
                 ['At-risk learners', 'exclamation-diamond', 'teacher/at-risk.php'],
-                ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses],
+                ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses, 'show' => $excusesOn],
                 ['Learners', 'people', 'admin/profiles.php'],
-                ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages],
-                ['News', 'megaphone', 'news.php'],
+                $messagesItem,
+                ['News', 'megaphone', 'news.php', 'show' => Access::on('news')],
             ],
-            default => [...$teaching, ['News', 'megaphone', 'news.php']],
+            default => [...$teaching, ['News', 'megaphone', 'news.php', 'show' => Access::on('news')]],
         };
     }
 
@@ -128,7 +151,7 @@ final class Navigation
     {
         $out = [];
         foreach ($items as $item) {
-            if ($item === null) {
+            if ($item === null || ($item['show'] ?? true) === false) {
                 continue;
             }
             if (isset($item['children'])) {

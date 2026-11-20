@@ -9,6 +9,7 @@ $student = $card['student'];
 $years = $card['years'];
 $selected = $card['selected'];
 $dash = '<span class="text-secondary">–</span>';
+$showAttendance = $showAttendance ?? true; // false when the Super Admin turned attendance off (learner and parent views)
 ?>
 <div class="card shadow-sm report-card">
     <div class="card-body p-4">
@@ -73,6 +74,7 @@ $dash = '<span class="text-secondary">–</span>';
                         </div>
                     </div>
                 <?php endforeach; ?>
+                <?php if ($showAttendance): ?>
                 <div class="col-sm-6 col-lg-4">
                     <div class="summary-tile">
                         <div class="label">Class attendance</div>
@@ -82,6 +84,7 @@ $dash = '<span class="text-secondary">–</span>';
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
 
             <?php foreach ($card['semesters'] as $sem => $data): $quarters = semester_quarters($sem); ?>
@@ -134,6 +137,7 @@ $dash = '<span class="text-secondary">–</span>';
                 and appears once both are released.
             </p>
 
+            <?php if ($showAttendance): ?>
             <h2 class="h6 mt-4 mb-2">Attendance by subject</h2>
             <?php if (!array_sum(array_column($card['attendance'], 'held'))): ?>
                 <p class="small text-secondary">No class attendance has been recorded yet this school year.</p>
@@ -162,6 +166,7 @@ $dash = '<span class="text-secondary">–</span>';
                         </tbody>
                     </table>
                 </div>
+            <?php endif; ?>
             <?php endif; ?>
 
             <div class="row small text-secondary mt-3">
