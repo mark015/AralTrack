@@ -30,19 +30,44 @@ foreach (['Forms', 'FormSheets', 'Messages', 'DocumentRequests', 'ClassRecord', 
 }
 require APP_ROOT . '/database/migrations.php';
 
+// Set before the first config() call, so a mistake in config/config.local.php is reported too.
+set_exception_handler(static function (Throwable $e): void {
+    error_log((string) $e);
+    try {
+        $debug = (bool) config('debug');
+    } catch (Throwable) {
+        $debug = false; // the config file itself is broken
+    }
+    if (!headers_sent()) {
+        http_response_code($e instanceof DatabaseUnavailable ? 503 : 500);
+    }
+    if ($debug) {
+        echo '<pre style="white-space:pre-wrap">' . e((string) $e) . '</pre>';
+        return;
+    }
+    // Setup problems are explained without names, paths or passwords; anything else stays a plain message.
+    $problem = match (true) {
+        $e instanceof DatabaseUnavailable => ["The portal can't connect to its database", $e->getMessage()],
+        str_ends_with(str_replace('\\', '/', $e->getFile()), 'config/config.local.php') => [
+            'There is a mistake in config/config.local.php',
+            'Line ' . $e->getLine() . ': ' . $e->getMessage() . '. Compare it with config/config.local.example.php.',
+        ],
+        default => null,
+    };
+    if ($problem === null) {
+        echo 'Something went wrong. Please try again later.';
+        return;
+    }
+    echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . e($problem[0]) . '</title>'
+        . '<div style="font-family:system-ui,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1rem;line-height:1.5">'
+        . '<h1 style="font-size:1.35rem">' . e($problem[0]) . '</h1><p>' . e($problem[1]) . '</p>'
+        . '<p style="color:#555">If you manage this website: the database settings are in <code>config/config.local.php</code> '
+        . '(copy <code>config/config.local.example.php</code>). More detail is in the server\'s error log.</p></div>';
+});
+
 date_default_timezone_set((string) config('timezone'));
 ini_set('display_errors', config('debug') ? '1' : '0');
 error_reporting(E_ALL);
-
-set_exception_handler(static function (Throwable $e): void {
-    error_log((string) $e);
-    if (!headers_sent()) {
-        http_response_code(500);
-    }
-    echo config('debug')
-        ? '<pre style="white-space:pre-wrap">' . e((string) $e) . '</pre>'
-        : 'Something went wrong. Please try again later.';
-});
 
 header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');

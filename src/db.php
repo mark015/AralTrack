@@ -17,14 +17,33 @@ function db(): PDO
         ]);
         prepare_db_session($pdo);
     } catch (PDOException $e) {
-        throw new RuntimeException(
-            'Could not connect to the database "' . $c['name'] . '". On XAMPP, start MySQL in the XAMPP Control Panel. '
-            . 'On web hosting, check the database settings in config/config.local.php. Then run: php database/install.php',
-            0,
-            $e
-        );
+        $pdo = null;
+        throw DatabaseUnavailable::from($e);
     }
     return $pdo;
+}
+
+/**
+ * The portal can't connect to its database. The message says why in plain words, without user names,
+ * hosts, paths or passwords, so it is safe to show on the error page even with debug off.
+ */
+final class DatabaseUnavailable extends RuntimeException
+{
+    public static function from(PDOException $e): self
+    {
+        $code = preg_match('/\[(\d{4})\]/', $e->getMessage(), $m) ? (int) $m[1] : 0;
+        $reason = match ($code) {
+            1045 => 'The database user name or password is wrong.',
+            1044 => 'The database user has no access to this database. Add the user to the database (Hostinger: hPanel → Databases → MySQL Databases).',
+            1049 => 'There is no database with this name. Check the database name, including the u123456789_ prefix on Hostinger.',
+            2002, 2003, 2005, 2006 => 'The database server could not be reached. Check the database host (on Hostinger it is localhost; on XAMPP, start MySQL).',
+            default => 'The connection to the database failed.',
+        };
+        if (!is_file(APP_ROOT . '/config/config.local.php')) {
+            $reason .= ' config/config.local.php was not found on this server, so the default XAMPP settings were used.';
+        }
+        return new self($reason, 0, $e);
+    }
 }
 
 function db_all(string $sql, array $params = []): array
