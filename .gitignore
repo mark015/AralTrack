@@ -1,0 +1,17 @@
+# Composer packages: run "composer install" after cloning
+/vendor/
+
+# Uploaded files and database backups contain learners' personal data. Never commit them.
+/storage/excuses/*
+/storage/materials/*
+/storage/photos/*
+/storage/backups/*
+!/storage/*/.gitkeep
+
+# Local and editor files
+.claude/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

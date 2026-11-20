@@ -1,0 +1,17 @@
+# Only the public/ folder is served. Everything else (config, src, vendor, database)
+# is unreachable from the browser.
+Options -Indexes
+
+# Installable app (PWA) manifest
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^((?!public/).*)$ public/$1 [L]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

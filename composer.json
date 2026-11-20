@@ -1,0 +1,8 @@
+{
+    "name": "school/student-portal",
+    "type": "project",
+    "require": {
+        "phpoffice/phpspreadsheet": "^3",
+        "chillerlan/php-qrcode": "^5"
+    }
+}
