@@ -142,6 +142,28 @@ If the phone can't open the page at all, allow Apache through Windows Firewall (
 - **Inactivity sign-out:** learners after 15 minutes, staff and parents after 60.
 - **Privacy notice** (`/privacy.php`, linked in the footer): what the portal stores and who sees it (Data Privacy Act of 2012). Parents accept it when they register. Set the data privacy contact under Settings.
 
+## Putting it online (Hostinger or other PHP hosting)
+
+The server's own settings (database password, web address, debug off) go in `config/config.local.php`, which is **not saved in Git**. Copy `config/config.local.example.php` to that name and fill it in. Anything in it replaces the same setting in `config.php`.
+
+On Hostinger (hPanel):
+1. **Websites → Manage → Advanced → PHP Configuration**: choose PHP **8.2** or newer.
+2. **Databases → MySQL Databases**: create a database and user. Note the full names (with the `u123456789_` prefix) and the password. The host is `localhost`.
+3. **Security → SSL**: install the free SSL certificate and turn on **Force HTTPS** (needed for phone camera scanning and the installable app).
+4. Put the files in **`public_html`** (the whole project: `.htaccess`, `config/`, `public/`, `src/`, …), either:
+   - **Advanced → Git**: deploy from your GitHub repository into `public_html` (the folder must be empty), or
+   - **Files → File Manager**: upload a zip of the project and extract it in `public_html`.
+5. Add the Composer libraries: with **Advanced → SSH Access**, run `cd public_html && composer install --no-dev`. Without SSH, upload your local `vendor/` folder (zip it, upload, extract).
+6. In File Manager, create `config/config.local.php` from the example: `base_url` `''` (or `'/folder'` if the portal is in a folder), `debug` `false`, and the database name, user and password.
+7. Create the tables: over SSH, `cd public_html && php database/install.php` (prints the admin password). Without SSH, import a `.sql` file in **Databases → phpMyAdmin** (make it on your computer with `php database/install.php --db=araltrack_live` and export that database, or use a Setup → Backup file).
+8. Sign in as `admin`, change the password, and fill in **Setup → Settings**, including *Portal address for parents* (`https://yourdomain.com`).
+
+Updating later: deploy the new code (Git → Deploy, or upload the changed files), then run `php database/migrate.php` over SSH.
+
+The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `database/` and `storage/` can't be opened from the browser. The portal sets each database connection to the portal's time zone (`Asia/Manila`), so times are right even when the hosting's MySQL runs on UTC.
+
+**Don't put the demo data online with the demo passwords**: they are published in this README. Install without `--seed`, or change every demo account's password first.
+
 ## Before using it for real
 
 - In `config/config.php`, set `debug` to `false`.

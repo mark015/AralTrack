@@ -25,8 +25,34 @@ const SUBJECT_TYPES = ['core' => 'Core', 'applied' => 'Applied', 'specialized' =
 function config(string $key): mixed
 {
     static $config = null;
-    $config ??= require APP_ROOT . '/config/config.php';
+    if ($config === null) {
+        $config = require APP_ROOT . '/config/config.php';
+        // Server-specific settings (database password, base_url, debug) go in config/config.local.php,
+        // which is not in Git, so passwords stay off GitHub. See config/config.local.example.php.
+        $localFile = APP_ROOT . '/config/config.local.php';
+        if (is_file($localFile)) {
+            foreach ((array) require $localFile as $name => $value) {
+                $config[$name] = is_array($value) && is_array($config[$name] ?? null) && !array_is_list($value)
+                    ? array_replace($config[$name], $value) // e.g. 'db' => ['pass' => …] keeps the other db settings
+                    : $value;
+            }
+        }
+    }
     return $config[$key] ?? null;
+}
+
+/**
+ * Makes a database connection use the portal's time zone (shared hosts often run MySQL on UTC), and turns off
+ * ONLY_FULL_GROUP_BY, which MySQL 8 has on by default, so the portal behaves the same on MySQL and MariaDB.
+ */
+function prepare_db_session(PDO $pdo): void
+{
+    $modes = array_filter(
+        explode(',', (string) $pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn()),
+        static fn (string $mode): bool => $mode !== '' && $mode !== 'ONLY_FULL_GROUP_BY'
+    );
+    $offset = (new DateTime('now', new DateTimeZone((string) (config('timezone') ?: 'Asia/Manila'))))->format('P');
+    $pdo->exec('SET time_zone = ' . $pdo->quote($offset) . ', sql_mode = ' . $pdo->quote(implode(',', $modes)));
 }
 
 /**

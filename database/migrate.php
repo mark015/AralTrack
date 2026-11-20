@@ -26,9 +26,11 @@ try {
         $c['pass'],
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
     );
+    prepare_db_session($pdo);
 } catch (PDOException $e) {
     fwrite(STDERR, "Cannot open database \"{$c['name']}\": {$e->getMessage()}\n"
-        . "Start MySQL in the XAMPP Control Panel. If the database doesn't exist yet, run: php database/install.php\n");
+        . "Start MySQL in the XAMPP Control Panel (on web hosting, check config/config.local.php).\n"
+        . "If the database is still empty, run: php database/install.php\n");
     exit(1);
 }
 

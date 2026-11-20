@@ -22,6 +22,7 @@ $pdo = new PDO(
     $c['user'], $c['pass'],
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
 );
+prepare_db_session($pdo);
 run_migrations($pdo);
 seed_demo_extras($pdo);
 seed_demo_classroom($pdo);

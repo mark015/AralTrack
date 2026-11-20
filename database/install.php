@@ -44,8 +44,10 @@ try {
         $c['pass'],
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
     );
+    prepare_db_session($pdo);
 } catch (PDOException $e) {
-    fwrite(STDERR, "Cannot connect to MySQL: {$e->getMessage()}\nStart MySQL in the XAMPP Control Panel and try again.\n");
+    fwrite(STDERR, "Cannot connect to MySQL: {$e->getMessage()}\nStart MySQL in the XAMPP Control Panel and try again.\n"
+        . "On web hosting, check the database settings in config/config.local.php.\n");
     exit(1);
 }
 
@@ -53,8 +55,20 @@ if ($fresh) {
     $pdo->exec("DROP DATABASE IF EXISTS `{$db}`");
     echo "Deleted database {$db}.\n";
 }
-$pdo->exec("CREATE DATABASE IF NOT EXISTS `{$db}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-$pdo->exec("USE `{$db}`");
+try {
+    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$db}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+} catch (PDOException) {
+    // Shared hosting (e.g. Hostinger) doesn't let the account create databases; it must already exist (checked next).
+}
+try {
+    $pdo->exec("USE `{$db}`");
+} catch (PDOException $e) {
+    fwrite(STDERR, "Cannot open the database \"{$db}\": {$e->getMessage()}\n"
+        . "On web hosting, first create the database and its user in the control panel\n"
+        . "(Hostinger: hPanel → Databases → MySQL Databases), then put the database name, user and password\n"
+        . "in config/config.local.php (copy config/config.local.example.php).\n");
+    exit(1);
+}
 
 if ($pdo->query("SHOW TABLES LIKE 'users'")->fetchColumn()) {
     fwrite(STDERR, "The database \"{$db}\" is already installed. To update it, run: php database/migrate.php\n"

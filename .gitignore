@@ -1,6 +1,9 @@
 # Composer packages: run "composer install" after cloning
 /vendor/
 
+# Server settings with the database password (copy config/config.local.example.php)
+/config/config.local.php
+
 # Uploaded files and database backups contain learners' personal data. Never commit them.
 /storage/excuses/*
 /storage/materials/*

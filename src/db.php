@@ -15,10 +15,11 @@ function db(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
+        prepare_db_session($pdo);
     } catch (PDOException $e) {
         throw new RuntimeException(
-            'Could not connect to the database "' . $c['name'] . '". Start MySQL in the XAMPP Control Panel, '
-            . 'then run: php database/install.php',
+            'Could not connect to the database "' . $c['name'] . '". On XAMPP, start MySQL in the XAMPP Control Panel. '
+            . 'On web hosting, check the database settings in config/config.local.php. Then run: php database/install.php',
             0,
             $e
         );
