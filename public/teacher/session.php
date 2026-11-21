@@ -48,8 +48,11 @@ require APP_ROOT . '/templates/header.php';
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <div id="camera" class="camera-box mb-2"></div>
-                        <p id="camera-note" class="small text-secondary mb-2">Point the camera at a learner's QR card.</p>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="camera-toggle">Start camera</button>
+                        <p id="camera-note" class="small text-secondary mb-2" role="status">Press Start camera, then point it at a learner's QR card.</p>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <button type="button" class="btn btn-primary btn-sm" id="camera-toggle"><i class="bi bi-camera-video me-1" aria-hidden="true"></i>Start camera</button>
+                            <select id="camera-select" class="form-select form-select-sm w-auto" aria-label="Camera" hidden></select>
+                        </div>
                         <hr>
                         <label for="scan-input" class="form-label small mb-1">USB scanner (or type the card code and press Enter)</label>
                         <input id="scan-input" class="form-control" autocomplete="off">

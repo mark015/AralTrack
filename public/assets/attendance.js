@@ -179,28 +179,92 @@
             );
         } else {
             var scanner = null;
-            toggle.addEventListener('click', function () {
-                if (scanner) {
-                    scanner.stop().then(function () {
-                        scanner.clear();
-                        scanner = null;
-                        toggle.textContent = 'Start camera';
-                    });
-                    return;
+            var picker = document.getElementById('camera-select');
+
+            // The scan square: 70% of the smaller side of the picture, so it fits small phones too.
+            var config = {
+                fps: 10,
+                qrbox: function (width, height) {
+                    var side = Math.max(120, Math.floor(Math.min(width, height) * 0.7));
+                    return {width: side, height: side};
                 }
+            };
+
+            // Turns the browser's error into advice a teacher can act on.
+            var explain = function (error) {
+                var text = String(error && (error.name || error.message) ? (error.name + ' ' + error.message) : error);
+                if (/NotAllowed|Permission|denied/i.test(text)) {
+                    return 'Camera access is blocked for this site. Tap the lock or camera icon next to the address, allow the camera, then press Start camera again.';
+                }
+                if (/NotFound|Requested device not found|no camera/i.test(text)) {
+                    return 'No camera was found on this device. Use a phone or a laptop with a camera, or a USB QR scanner below.';
+                }
+                if (/NotReadable|Could not start video source|in use/i.test(text)) {
+                    return 'The camera is being used by another app or browser tab. Close it (e.g. Zoom, Messenger, another tab) and press Start camera again.';
+                }
+                if (/Overconstrained/i.test(text)) {
+                    return 'This camera could not be opened. Choose another camera in the list, or use a USB scanner.';
+                }
+                return 'Could not start the camera (' + text + '). Allow camera access for this site, or use a USB scanner below.';
+            };
+
+            var start = function (camera) {
                 scanner = new Html5Qrcode('camera');
                 toggle.disabled = true;
-                scanner.start({facingMode: 'environment'}, {fps: 10, qrbox: {width: 220, height: 220}}, scan, function () {})
+                note.textContent = 'Starting the camera…';
+                return scanner.start(camera, config, scan, function () {})
                     .then(function () {
                         toggle.disabled = false;
                         toggle.textContent = 'Stop camera';
+                        note.textContent = 'Point the camera at a learner\'s QR card. It reads the card by itself.';
+                        // Offer the other cameras (front/back on phones, extra webcams on laptops).
+                        if (picker && picker.options.length === 0) {
+                            Html5Qrcode.getCameras().then(function (cameras) {
+                                if (cameras.length < 2) {
+                                    return;
+                                }
+                                cameras.forEach(function (cam, i) {
+                                    picker.add(new Option(cam.label || ('Camera ' + (i + 1)), cam.id));
+                                });
+                                picker.hidden = false;
+                            }).catch(function () { /* no list: keep the default camera */ });
+                        }
                     })
                     .catch(function (error) {
                         toggle.disabled = false;
+                        toggle.textContent = 'Start camera';
+                        try { scanner.clear(); } catch (e) { /* nothing to clear */ }
                         scanner = null;
-                        note.textContent = 'Could not start the camera (' + error + '). Allow camera access for this site, or use a USB scanner.';
+                        note.textContent = explain(error);
                     });
+            };
+
+            var stop = function () {
+                if (!scanner) {
+                    return Promise.resolve();
+                }
+                var running = scanner;
+                scanner = null;
+                return running.stop().catch(function () {}).then(function () {
+                    try { running.clear(); } catch (e) { /* already cleared */ }
+                    toggle.textContent = 'Start camera';
+                });
+            };
+
+            toggle.addEventListener('click', function () {
+                if (scanner) {
+                    stop();
+                } else {
+                    start(picker && picker.value ? {deviceId: {exact: picker.value}} : {facingMode: 'environment'});
+                }
             });
+            if (picker) {
+                picker.addEventListener('change', function () {
+                    stop().then(function () {
+                        start({deviceId: {exact: picker.value}});
+                    });
+                });
+            }
         }
     }
 

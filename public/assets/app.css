@@ -494,14 +494,24 @@ main.container { padding-top: 1.75rem !important; padding-bottom: 3rem !importan
     padding: .75rem 0;
 }
 
+/* The camera box must stay visible: the scanner measures its width when it starts, and a hidden
+   (0 px wide) box gives a 0 px video that shows nothing and can't read cards. */
 .camera-box {
+    position: relative;
     width: 100%; max-width: 380px;
     border-radius: 12px;
     overflow: hidden;
     background: #0b1838;
     box-shadow: 0 0 0 4px var(--sp-blue-100);
 }
-.camera-box:empty { display: none; }
+.camera-box video { display: block; max-width: 100%; }
+.camera-box:empty { aspect-ratio: 4 / 3; display: grid; place-items: center; }
+.camera-box:empty::before {
+    content: "\F21E  Camera is off";
+    font-family: bootstrap-icons, var(--bs-body-font-family);
+    color: rgba(255, 255, 255, .55);
+    font-size: .9rem;
+}
 
 .scan-result {
     font-size: 1.12rem; font-weight: 700;
