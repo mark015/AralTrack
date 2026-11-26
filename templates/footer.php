@@ -20,6 +20,9 @@
 </footer>
 <script src="<?= e(asset('assets/vendor/bootstrap.bundle.min.js')) ?>"></script>
 <script src="<?= e(asset('assets/theme.js')) ?>"></script>
+<?php if (!empty($offlineKey)): ?>
+    <script src="<?= e(asset('assets/offline-pages.js')) ?>"></script>
+<?php endif; ?>
 <?php if (current_staff() || str_ends_with(str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? ''), '/staff/login.php')): ?>
     <script src="<?= e(asset('assets/offline-attendance.js')) ?>"></script>
 <?php endif; ?>

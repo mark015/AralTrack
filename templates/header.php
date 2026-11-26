@@ -16,6 +16,13 @@ $navHome = $navOwner ? 'platform/index.php'
     : ($navStaff ? home_for($navStaff) : ($navParent ? 'parent/index.php' : ($navLearner ? 'learner/index.php' : 'index.php')));
 $navSchool = !$navOwner && Workspace::known() ? setting('school_name') : null;
 $navActing = $navStaff && !empty($_SESSION['acting_owner']) && current_owner();
+// Offline viewing (src/OfflinePages.php): the device may keep this page, and saves the main pages by itself.
+// Not while the platform owner is looking at a school's portal.
+$offlineKey = ($navOwner || $navActing) ? null : OfflinePages::accountKey($navStaff, $navParent, $navStudentId);
+$offlinePage = OfflinePages::currentPage();
+if ($offlineKey !== null && OfflinePages::maySave($offlinePage) && !headers_sent()) {
+    header('X-Offline-Save: ' . $offlineKey);
+}
 $navIsActive = static function (array $item) use ($navScript, &$navIsActive): bool {
     if (isset($item['children'])) {
         foreach ($item['children'] as $child) {
@@ -62,6 +69,11 @@ $flashes = take_flashes();
         <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
         <meta name="sgp-staff-id" content="<?= (int) $navStaff['id'] ?>">
         <meta name="sgp-offline-api" content="<?= e(url('teacher/offline-api.php')) ?>">
+    <?php endif; ?>
+    <?php if ($offlineKey !== null): // read by assets/offline-pages.js ?>
+        <meta name="sgp-offline-key" content="<?= e($offlineKey) ?>">
+        <?php if (OfflinePages::maySave($offlinePage)): ?><meta name="sgp-offline-page" content="1"><?php endif; ?>
+        <meta name="sgp-offline-preload" content="<?= e(json_encode(array_map('url', OfflinePages::preload($navStaff, $navParent, $navStudentId)), JSON_UNESCAPED_SLASHES)) ?>">
     <?php endif; ?>
     <?php if (is_file(APP_ROOT . '/public/manifest.webmanifest')): ?>
         <link rel="manifest" href="<?= e(url('manifest.webmanifest')) ?>">
@@ -140,6 +152,11 @@ $flashes = take_flashes();
                             <?php endif; ?>
                             <?php if ($navUser['password']): ?>
                                 <li><a class="dropdown-item" href="<?= e(url($navUser['password'])) ?>"><i class="bi bi-key"></i>Change password</a></li>
+                            <?php endif; ?>
+                            <?php if ($offlineKey !== null): ?>
+                                <li><button type="button" class="dropdown-item d-flex align-items-center" data-offline-toggle
+                                            title="Keeps your pages on this device so you can read them without internet. They are deleted when you sign out.">
+                                    <i class="bi bi-cloud-arrow-down"></i>Offline copy<span class="badge rounded-pill text-bg-secondary ms-auto" data-offline-state>Off</span></button></li>
                             <?php endif; ?>
                             <li><a class="dropdown-item" href="<?= e(url('privacy.php')) ?>"><i class="bi bi-shield-lock"></i>Privacy notice</a></li>
                             <li><hr class="dropdown-divider"></li>

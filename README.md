@@ -136,7 +136,24 @@ Teachers can take QR attendance without internet. Everything is sent to the serv
 - **Internet drops during class:** the attendance page keeps working. Scans and hand marks are saved on the phone with their exact time (so Late is still right), the page says "saved on this phone", and they are sent automatically when the connection returns. Finish also works.
 - **No internet at all:** open **offline-attendance.html** (the *Open offline attendance* button, or the link on the "You're offline" page). Choose the class, confirm the start time, then scan with the camera or a USB scanner, mark by hand, and finish. It works after the phone has visited the portal once while online.
 - **Sending:** automatic when online (or press *Send now*). Each offline class has its own id, so sending twice never makes duplicates; parents get their late/absent notifications when it arrives. If the teacher was signed out meanwhile, the records stay on the phone until they sign in again.
-- Not offline: signing in for the first time on a phone, grades, messages and requests.
+- Not offline: signing in for the first time on a phone, entering grades, messages and requests (they can be read
+  offline with *Offline copy*, below).
+
+## Offline copy (reading pages without internet)
+
+Learners, parents and teachers can read their pages without internet, as they were when last online.
+
+- **On by default in the installed app** (added to the home screen, usually the person's own phone). In a normal
+  browser it is off until the person turns on **Offline copy** in their menu (top right).
+- After sign-in the device saves the main pages by itself: learners their home, report card, schedule and subjects;
+  parents each child's attendance and grades; teachers *My classes*, schedule, advisory and each class's grades
+  and attendance. Every other page of their portal is saved when they open it.
+- **No internet:** the saved copy opens with a bar "You're offline · this is your saved copy from …". Buttons that
+  save are switched off; the page reloads by itself when the connection is back. A page that isn't saved shows the
+  list of pages that are.
+- **Privacy:** only pages the server marks as the person's own are kept (`src/OfflinePages.php`): never admin,
+  Super Admin or platform pages, sign-in forms or the live attendance page. **Signing out deletes every saved page**,
+  and so does turning Offline copy off or another person signing in on the device.
 
 ## Installable app and dark mode
 
