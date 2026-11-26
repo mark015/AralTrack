@@ -9,7 +9,7 @@ if ($staff) {
     require_parent();
 } elseif (current_student_id() === null) {
     flash('warning', 'Please sign in to see announcements.');
-    redirect('index.php');
+    redirect('learner/login.php');
 }
 $viewer = $staff ? 'staff' : 'families';
 

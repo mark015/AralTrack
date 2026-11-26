@@ -1,6 +1,6 @@
 {
-  "name": "Student Grade Portal",
-  "short_name": "Grade Portal",
+  "name": "AralTrack",
+  "short_name": "AralTrack",
   "description": "Grades, class attendance, schedules and school news for learners, parents and teachers.",
   "start_url": "./",
   "scope": "./",

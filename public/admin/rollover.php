@@ -4,19 +4,19 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin');
-$years = db_all('SELECT * FROM school_years ORDER BY label');
-$from = db_one('SELECT * FROM school_years WHERE id = ?', [get_int('from') ?: (int) (active_school_year()['id'] ?? 0)]);
-$to = db_one('SELECT * FROM school_years WHERE id = ?', [get_int('to')]);
+$years = db_all('SELECT * FROM school_years WHERE workspace_id = ? ORDER BY label', [ws()]);
+$from = db_one('SELECT * FROM school_years WHERE id = ? AND workspace_id = ?', [get_int('from') ?: (int) (active_school_year()['id'] ?? 0), ws()]);
+$to = db_one('SELECT * FROM school_years WHERE id = ? AND workspace_id = ?', [get_int('to'), ws()]);
 if (!$to && $from) {
-    $to = db_one('SELECT * FROM school_years WHERE label > ? ORDER BY label LIMIT 1', [$from['label']]);
+    $to = db_one('SELECT * FROM school_years WHERE label > ? AND workspace_id = ? ORDER BY label LIMIT 1', [$from['label'], ws()]);
 }
 $here = 'admin/rollover.php?from=' . ($from['id'] ?? 0) . '&to=' . ($to['id'] ?? 0);
 
 if (is_post() && post('action') === 'create_year') {
     if ($from && preg_match('/^(\d{4})-(\d{4})$/', $from['label'], $m)) {
         $label = ($m[1] + 1) . '-' . ($m[2] + 1);
-        db_exec('INSERT IGNORE INTO school_years (label, is_active) VALUES (?, 0)', [$label]);
-        $new = db_one('SELECT * FROM school_years WHERE label = ?', [$label]);
+        db_exec('INSERT IGNORE INTO school_years (workspace_id, label, is_active) VALUES (?, ?, 0)', [ws(), $label]);
+        $new = db_one('SELECT * FROM school_years WHERE label = ? AND workspace_id = ?', [$label, ws()]);
         flash('success', "S.Y. {$label} is ready. It stays inactive until you make it active under School years.");
         redirect('admin/rollover.php?from=' . $from['id'] . '&to=' . $new['id']);
     }
@@ -40,7 +40,7 @@ if (is_post() && post('action') === 'create_sections' && $from && $to) {
             if ($targetFor($sec, $grade)) {
                 continue;
             }
-            db_exec('INSERT INTO sections (school_year_id, grade_level, strand, name, adviser_id) VALUES (?, ?, ?, ?, ?)', [$to['id'], $grade, $sec['strand'], $sec['name'], $sec['adviser_id']]);
+            db_exec('INSERT INTO sections (workspace_id, school_year_id, grade_level, strand, name, adviser_id) VALUES (?, ?, ?, ?, ?, ?)', [ws(), $to['id'], $grade, $sec['strand'], $sec['name'], $sec['adviser_id']]);
             $newId = (int) db()->lastInsertId();
             $created++;
             if (post('copy') === '1') {
@@ -52,8 +52,8 @@ if (is_post() && post('action') === 'create_sections' && $from && $to) {
                 );
                 if ($model) {
                     $copied += db_exec(
-                        'INSERT INTO class_assignments (section_id, subject_id, teacher_id, semester)
-                         SELECT ?, subject_id, teacher_id, semester FROM class_assignments WHERE section_id = ?',
+                        'INSERT INTO class_assignments (workspace_id, section_id, subject_id, teacher_id, semester)
+                         SELECT workspace_id, ?, subject_id, teacher_id, semester FROM class_assignments WHERE section_id = ?',
                         [$newId, $model['id']]
                     );
                 }
@@ -104,10 +104,10 @@ if (is_post() && post('action') === 'apply' && $from && $to) {
             enroll_student($sid, $target);
             $done[$do]++;
         } elseif ($do === 'graduate') {
-            db_exec("UPDATE students SET status = 'graduated', status_note = ? WHERE id = ?", ['Graduated S.Y. ' . $from['label'], $sid]);
+            db_exec("UPDATE students SET status = 'graduated', status_note = ? WHERE id = ? AND workspace_id = ?", ['Graduated S.Y. ' . $from['label'], $sid, ws()]);
             $done['graduate']++;
         } elseif (in_array($do, ['transferred_out', 'dropped'], true)) {
-            db_exec('UPDATE students SET status = ?, status_note = ? WHERE id = ?', [$do, 'S.Y. ' . $from['label'], $sid]);
+            db_exec('UPDATE students SET status = ?, status_note = ? WHERE id = ? AND workspace_id = ?', [$do, 'S.Y. ' . $from['label'], $sid, ws()]);
             $done[$do]++;
         }
     }

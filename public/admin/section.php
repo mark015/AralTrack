@@ -7,8 +7,8 @@ $sectionId = get_int('id');
 $section = db_one(
     'SELECT s.*, s.name AS section_name, sy.label AS sy_label
        FROM sections s JOIN school_years sy ON sy.id = s.school_year_id
-      WHERE s.id = ?',
-    [$sectionId]
+      WHERE s.id = ? AND s.workspace_id = ?',
+    [$sectionId, ws()]
 );
 if (!$section) {
     abort(404, 'That section does not exist.');
@@ -38,7 +38,7 @@ if (is_post()) {
                 break;
             }
             try {
-                db_exec('UPDATE sections SET grade_level = ?, strand = ?, name = ?, adviser_id = ? WHERE id = ?', [$level, $strand, $name, $adviser ?: null, $sectionId]);
+                db_exec('UPDATE sections SET grade_level = ?, strand = ?, name = ?, adviser_id = ? WHERE id = ? AND workspace_id = ?', [$level, $strand, $name, $adviser ?: null, $sectionId, ws()]);
                 flash('success', 'Section details saved.');
             } catch (PDOException $e) {
                 if (!is_duplicate_error($e)) {
@@ -52,13 +52,13 @@ if (is_post()) {
             $subjectId = post_int('subject_id');
             $teacherId = post_int('teacher_id');
             $semester = post_int('semester');
-            if (!db_value('SELECT id FROM subjects WHERE id = ?', [$subjectId]) || !in_array($teacherId, $staffIds, true)
+            if (!db_value('SELECT id FROM subjects WHERE id = ? AND workspace_id = ?', [$subjectId, ws()]) || !in_array($teacherId, $staffIds, true)
                 || !in_array($semester, SEMESTERS, true)) {
                 flash('danger', 'Choose a subject, a semester and a teacher.');
                 break;
             }
             try {
-                db_exec('INSERT INTO class_assignments (section_id, subject_id, teacher_id, semester) VALUES (?, ?, ?, ?)', [$sectionId, $subjectId, $teacherId, $semester]);
+                db_exec('INSERT INTO class_assignments (workspace_id, section_id, subject_id, teacher_id, semester) VALUES (?, ?, ?, ?, ?)', [ws(), $sectionId, $subjectId, $teacherId, $semester]);
                 flash('success', 'Subject added to this section.');
             } catch (PDOException $e) {
                 if (!is_duplicate_error($e)) {
@@ -103,7 +103,7 @@ if (is_post()) {
                     $problems[] = "{$lrn} (not a 12-digit LRN)";
                     continue;
                 }
-                $student = db_one('SELECT * FROM students WHERE lrn = ?', [$lrn]);
+                $student = db_one('SELECT * FROM students WHERE lrn = ? AND workspace_id = ?', [$lrn, ws()]);
                 if (!$student) {
                     $problems[] = "{$lrn} (no learner with this LRN — add them under Learners first)";
                     continue;
@@ -151,9 +151,9 @@ $classes = db_all(
     [$sectionId]
 );
 $freeSubjects = db_all(
-    'SELECT * FROM subjects WHERE id NOT IN (SELECT subject_id FROM class_assignments WHERE section_id = ?)
+    'SELECT * FROM subjects WHERE workspace_id = ? AND id NOT IN (SELECT subject_id FROM class_assignments WHERE section_id = ?)
       ORDER BY type = \'core\' DESC, sort_order, name',
-    [$sectionId]
+    [ws(), $sectionId]
 );
 $semesterCount = array_fill_keys(SEMESTERS, 0);
 foreach ($classes as $c) {

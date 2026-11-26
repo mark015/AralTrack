@@ -170,8 +170,8 @@ final class Access
         db_exec('DELETE FROM access_blocks WHERE account_type = ? AND account_id = ?', [$type, $id]);
         foreach ($parts as $part) {
             db_exec(
-                'INSERT INTO access_blocks (account_type, account_id, part, note, created_by) VALUES (?, ?, ?, ?, ?)',
-                [$type, $id, $part, $note !== '' ? $note : null, $byStaffId]
+                'INSERT INTO access_blocks (workspace_id, account_type, account_id, part, note, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+                [ws(), $type, $id, $part, $note !== '' ? $note : null, $byStaffId]
             );
         }
         unset(self::$blockCache[$type . ':' . $id]);
@@ -315,12 +315,14 @@ final class Access
     {
         try {
             $now = date('Y-m-d H:i:s');
+            $table = self::ACCOUNT_TABLES[$type];
+            // The school of the account; a user name that doesn't exist belongs to no school
+            $workspaceId = $accountId ? db_value("SELECT workspace_id FROM {$table} WHERE id = ?", [$accountId]) : null;
             db_exec(
-                'INSERT INTO login_events (account_type, account_id, identifier, success, reason, ip, device, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [$type, $accountId, mb_substr($identifier, 0, 150), $success ? 1 : 0, $reason, client_ip(), self::device(), $now]
+                'INSERT INTO login_events (workspace_id, account_type, account_id, identifier, success, reason, ip, device, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$workspaceId, $type, $accountId, mb_substr($identifier, 0, 150), $success ? 1 : 0, $reason, client_ip(), self::device(), $now]
             );
             if ($success && $accountId) {
-                $table = ['staff' => 'users', 'parent' => 'parents', 'learner' => 'students'][$type];
                 db_exec("UPDATE {$table} SET last_login_at = ?, last_login_ip = ?, last_login_device = ? WHERE id = ?", [$now, client_ip(), self::device(), $accountId]);
             }
             if (random_int(1, 200) === 1) {
@@ -337,8 +339,9 @@ final class Access
         try {
             $staff = current_staff();
             db_exec(
-                'INSERT INTO activity_log (actor_id, actor_name, action, target_type, target_id, summary, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO activity_log (workspace_id, actor_id, actor_name, action, target_type, target_id, summary, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
+                    ws(),
                     $staff['id'] ?? null,
                     $staff ? $staff['full_name'] . ' (' . $staff['username'] . ')' : 'System',
                     $action,
@@ -373,12 +376,15 @@ final class Access
         return max(30, min(3650, (int) (setting('log_keep_days') ?: 365)));
     }
 
-    /** Deletes log entries older than the kept period. */
+    /** Deletes this school's log entries older than its kept period (sign-ins with unknown names: after a year). */
     public static function prune(): void
     {
-        $cut = date('Y-m-d H:i:s', time() - self::keepDays() * 86400);
-        db_exec('DELETE FROM login_events WHERE created_at < ?', [$cut]);
-        db_exec('DELETE FROM activity_log WHERE created_at < ?', [$cut]);
+        if (Workspace::known()) {
+            $cut = date('Y-m-d H:i:s', time() - self::keepDays() * 86400);
+            db_exec('DELETE FROM login_events WHERE workspace_id = ? AND created_at < ?', [ws(), $cut]);
+            db_exec('DELETE FROM activity_log WHERE workspace_id = ? AND created_at < ?', [ws(), $cut]);
+        }
+        db_exec('DELETE FROM login_events WHERE workspace_id IS NULL AND created_at < ?', [date('Y-m-d H:i:s', time() - 365 * 86400)]);
     }
 
     // ------------------------------------------------------------ signing accounts out
@@ -391,12 +397,12 @@ final class Access
         db_exec('UPDATE ' . self::ACCOUNT_TABLES[$type] . ' SET session_version = session_version + 1 WHERE id = ?', [$id]);
     }
 
-    /** Ends everyone's sessions except the person doing it. */
+    /** Ends everyone's sessions in this school except the person doing it. */
     public static function signOutEveryone(int $exceptStaffId): void
     {
-        db_exec('UPDATE users SET session_version = session_version + 1 WHERE id <> ?', [$exceptStaffId]);
-        db_exec('UPDATE parents SET session_version = session_version + 1');
-        db_exec('UPDATE students SET session_version = session_version + 1');
+        db_exec('UPDATE users SET session_version = session_version + 1 WHERE id <> ? AND workspace_id = ?', [$exceptStaffId, ws()]);
+        db_exec('UPDATE parents SET session_version = session_version + 1 WHERE workspace_id = ?', [ws()]);
+        db_exec('UPDATE students SET session_version = session_version + 1 WHERE workspace_id = ?', [ws()]);
     }
 
     /** Remembers which session version this browser signed in with. */

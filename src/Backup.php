@@ -26,7 +26,7 @@ final class Backup
         $pdo = db();
         $c = config('db');
         fwrite($out, self::HEADER . "\n-- Database: {$c['name']} · Made: " . date('Y-m-d H:i:s') . ' · App: ' . config('app_name') . "\n");
-        fwrite($out, "-- Restore it from Setup → Backup, or: mysql -u root {$c['name']} < this-file.sql\n\n");
+        fwrite($out, "-- Restore it from the platform console (Backups), or: mysql -u root {$c['name']} < this-file.sql\n\n");
         fwrite($out, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\nSET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n\n");
 
         // A second, unbuffered connection reads rows one by one, so big tables don't fill the memory.
@@ -116,7 +116,7 @@ final class Backup
         try {
             $first = (string) fgets($handle);
             if (!str_starts_with($first, self::HEADER)) {
-                throw new UserFacingException('This is not a backup made by the portal (Setup → Backup). Nothing was changed.');
+                throw new UserFacingException('This is not a backup made by the portal (Platform console → Backups). Nothing was changed.');
             }
             $pdo = db();
             $statements = 0;

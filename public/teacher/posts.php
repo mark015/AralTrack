@@ -21,8 +21,8 @@ if (is_post()) {
             try {
                 $file = Files::store($_FILES['file'] ?? null, 'material');
                 db_exec(
-                    'INSERT INTO class_posts (class_assignment_id, title, body, file_path, file_name, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-                    [$classId, $form['title'], $form['body'] !== '' ? $form['body'] : null, $file['path'] ?? null, $file['name'] ?? null, $staff['id']]
+                    'INSERT INTO class_posts (workspace_id, class_assignment_id, title, body, file_path, file_name, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [ws(), $classId, $form['title'], $form['body'] !== '' ? $form['body'] : null, $file['path'] ?? null, $file['name'] ?? null, $staff['id']]
                 );
                 flash('success', 'Posted. Learners in ' . section_label($class) . ' can see it now under Subjects.');
                 redirect($here);

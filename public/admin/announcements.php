@@ -19,11 +19,11 @@ if (is_post()) {
             flash('success', 'Announcement posted.' . ($audience !== 'staff' ? ' Parents got a notification.' : ''));
             break;
         case 'delete_post':
-            db_exec('DELETE FROM announcements WHERE id = ?', [post_int('id')]);
+            db_exec('DELETE FROM announcements WHERE id = ? AND workspace_id = ?', [post_int('id'), ws()]);
             flash('success', 'Announcement deleted.');
             break;
         case 'pin':
-            db_exec('UPDATE announcements SET pinned = 1 - pinned WHERE id = ?', [post_int('id')]);
+            db_exec('UPDATE announcements SET pinned = 1 - pinned WHERE id = ? AND workspace_id = ?', [post_int('id'), ws()]);
             break;
         case 'event':
             $title = post('title');
@@ -35,21 +35,21 @@ if (is_post()) {
                 break;
             }
             db_exec(
-                'INSERT INTO calendar_events (title, details, type, starts_on, ends_on, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-                [$title, mb_substr(post('details'), 0, 500) ?: null, $type, $start, $end, $staff['id']]
+                'INSERT INTO calendar_events (workspace_id, title, details, type, starts_on, ends_on, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [ws(), $title, mb_substr(post('details'), 0, 500) ?: null, $type, $start, $end, $staff['id']]
             );
             flash('success', 'Added to the calendar.');
             break;
         case 'delete_event':
-            db_exec('DELETE FROM calendar_events WHERE id = ?', [post_int('id')]);
+            db_exec('DELETE FROM calendar_events WHERE id = ? AND workspace_id = ?', [post_int('id'), ws()]);
             flash('success', 'Removed from the calendar.');
             break;
     }
     redirect($here);
 }
 
-$posts = db_all('SELECT a.*, u.full_name AS author FROM announcements a LEFT JOIN users u ON u.id = a.posted_by ORDER BY a.pinned DESC, a.id DESC LIMIT 50');
-$events = db_all('SELECT * FROM calendar_events WHERE ends_on >= ? ORDER BY starts_on LIMIT 100', [date('Y-m-d', strtotime('-30 days'))]);
+$posts = db_all('SELECT a.*, u.full_name AS author FROM announcements a LEFT JOIN users u ON u.id = a.posted_by WHERE a.workspace_id = ? ORDER BY a.pinned DESC, a.id DESC LIMIT 50', [ws()]);
+$events = db_all('SELECT * FROM calendar_events WHERE ends_on >= ? AND workspace_id = ? ORDER BY starts_on LIMIT 100', [date('Y-m-d', strtotime('-30 days')), ws()]);
 
 $title = 'Announcements';
 require APP_ROOT . '/templates/header.php';

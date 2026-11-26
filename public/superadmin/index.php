@@ -84,13 +84,13 @@ $today = date('Y-m-d 00:00:00');
 $stats = db_one(
     'SELECT COUNT(DISTINCT CASE WHEN success = 1 THEN CONCAT(account_type, account_id) END) AS people,
             SUM(success = 0) AS failed
-       FROM login_events WHERE created_at >= ?',
-    [$today]
+       FROM login_events WHERE created_at >= ? AND workspace_id = ?',
+    [$today, ws()]
 );
 $locked = count(RateLimiter::lockedIdentifiers('staff')) + count(RateLimiter::lockedIdentifiers('parent')) + count(RateLimiter::lockedIdentifiers('student'));
 $partsOn = count(array_filter($modules, static fn ($v) => $v === '1'));
 $groupsOpen = $maintenance ? 0 : count(array_filter([$login['login_staff'], $login['login_learner'], $login['login_parent']], static fn ($v) => $v === '1'));
-$recent = db_all('SELECT * FROM activity_log ORDER BY id DESC LIMIT 6');
+$recent = db_all('SELECT * FROM activity_log WHERE workspace_id = ? ORDER BY id DESC LIMIT 6', [ws()]);
 
 /** One on/off switch row. */
 $switch = static function (string $name, bool $checked, string $label, string $help, string $icon = '', bool $sub = false): string {

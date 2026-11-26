@@ -9,7 +9,7 @@ if ($sectionId = get_int('section')) {
     $learners = Forms::roster($sectionId);
     $back = 'admin/forms.php?sy=' . $section['school_year_id'];
 } else {
-    $student = db_one('SELECT * FROM students WHERE id = ?', [get_int('student')]);
+    $student = db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [get_int('student'), ws()]);
     if (!$student || !staff_can_see_learner($staff, (int) $student['id'])) {
         abort(404, 'That learner does not exist, or is not one of yours.');
     }

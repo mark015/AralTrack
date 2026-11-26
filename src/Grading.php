@@ -46,7 +46,7 @@ final class Grading
     /** Pending grade change requests (for the admin / principal badge). */
     public static function pendingRequests(): int
     {
-        return (int) db_value("SELECT COUNT(*) FROM grade_change_requests WHERE status = 'pending'");
+        return (int) db_value("SELECT COUNT(*) FROM grade_change_requests WHERE status = 'pending' AND workspace_id = ?", [ws()]);
     }
 
     /** Approves a change request: applies the new grade (bypassing the lock) and records who approved it. */

@@ -8,7 +8,7 @@ $staff = require_staff('admin', 'principal', 'guidance');
 $sy = active_school_year();
 
 if ($studentId = get_int('id')) {
-    $student = db_one('SELECT * FROM students WHERE id = ?', [$studentId]) ?? abort(404, 'That learner does not exist.');
+    $student = db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [$studentId, ws()]) ?? abort(404, 'That learner does not exist.');
     $here = 'admin/profiles.php?id=' . $studentId;
 
     if (is_post() && post('action') === 'note') {
@@ -16,7 +16,7 @@ if ($studentId = get_int('id')) {
         if (mb_strlen($note) < 3) {
             flash('danger', 'Write the note first.');
         } else {
-            db_exec('INSERT INTO interventions (student_id, class_assignment_id, note, created_by) VALUES (?, NULL, ?, ?)', [$studentId, $note, $staff['id']]);
+            db_exec('INSERT INTO interventions (workspace_id, student_id, class_assignment_id, note, created_by) VALUES (?, ?, NULL, ?, ?)', [ws(), $studentId, $note, $staff['id']]);
             flash('success', 'Note saved. Advisers and subject teachers see it on the At-risk learners page.');
         }
         redirect($here . '#notes');
@@ -215,8 +215,8 @@ if ($studentId = get_int('id')) {
 $q = trim(get_str('q'));
 $sectionId = get_int('section');
 $sections = $sy ? section_options((int) $sy['id']) : [];
-$where = ['1 = 1'];
-$params = [$sy['id'] ?? 0];
+$where = ['st.workspace_id = ?'];
+$params = [$sy['id'] ?? 0, ws()];
 if ($q !== '') {
     $where[] = '(st.lrn = ? OR CONCAT(st.first_name, \' \', st.last_name) LIKE ? OR st.last_name LIKE ?)';
     array_push($params, $q, '%' . $q . '%', $q . '%');

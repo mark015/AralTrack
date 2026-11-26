@@ -23,7 +23,7 @@ final class DocumentRequests
 
     public static function pending(): int
     {
-        return (int) db_value("SELECT COUNT(*) FROM document_requests WHERE status IN ('pending', 'processing')");
+        return (int) db_value("SELECT COUNT(*) FROM document_requests WHERE status IN ('pending', 'processing') AND workspace_id = ?", [ws()]);
     }
 
     public static function badge(string $status): string

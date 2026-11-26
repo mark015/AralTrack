@@ -22,9 +22,12 @@ Parent sign-in (http://localhost/student-portal/parent/login.php)
   09171234567              / parent123   Maria Dela Cruz, mother of Juan (Grade 12)
   ramon.aquino@example.com / parent123   Ramon Aquino, father of Rafael (Grade 11)
 
-Learner sign-in (http://localhost/student-portal/)
+Learner sign-in (http://localhost/student-portal/learner/login.php)
   LRN 100000260001  (Juan Dela Cruz, Grade 12 STEM – Einstein)
   LRN 100000260011  (Rafael Aquino, Grade 11 STEM – Newton)
+
+Platform console (http://localhost/student-portal/platform/login.php)
+  owner / owner12345     platform owner: all schools, demo requests, backups
 
 These passwords are for testing only.
 TXT;
@@ -41,13 +44,16 @@ function seed_demo_school(PDO $pdo): void
         ['guidance', 'guidance123', 'Carlo Mendoza', 'guidance'],
     ];
     $userId = [];
-    $insert = $pdo->prepare('INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)');
+    $insert = $pdo->prepare('INSERT INTO users (workspace_id, username, password_hash, full_name, role) VALUES (1, ?, ?, ?, ?)');
     foreach ($staff as [$username, $password, $name, $role]) {
         $insert->execute([$username, password_hash($password, PASSWORD_DEFAULT), $name, $role]);
         $userId[$username] = (int) $pdo->lastInsertId();
     }
+    // The company running the system for many schools (platform/ console)
+    $pdo->prepare('INSERT IGNORE INTO platform_owners (username, password_hash, full_name) VALUES (?, ?, ?)')
+        ->execute(['owner', password_hash('owner12345', PASSWORD_DEFAULT), 'Platform Owner']);
 
-    $pdo->exec("INSERT INTO school_years (label, is_active) VALUES ('2025-2026', 0), ('2026-2027', 1)");
+    $pdo->exec("INSERT INTO school_years (workspace_id, label, is_active) VALUES (1, '2025-2026', 0), (1, '2026-2027', 1)");
     $yearId = array_column($pdo->query('SELECT id, label FROM school_years')->fetchAll(), 'id', 'label');
 
     // Sample Senior High subjects (edit them under Admin → Subjects).
@@ -85,7 +91,7 @@ function seed_demo_school(PDO $pdo): void
     $grade11 = array_slice($subjects, 0, 14);
     $grade12 = array_slice($subjects, 14);
     $subjectId = [];
-    $insert = $pdo->prepare('INSERT INTO subjects (code, name, type, sort_order) VALUES (?, ?, ?, ?)');
+    $insert = $pdo->prepare('INSERT INTO subjects (workspace_id, code, name, type, sort_order) VALUES (1, ?, ?, ?, ?)');
     foreach ($subjects as [$code, $name, $type, $order]) {
         $insert->execute([$code, $name, $type, $order]);
         $subjectId[$code] = (int) $pdo->lastInsertId();
@@ -99,8 +105,8 @@ function seed_demo_school(PDO $pdo): void
     ];
     $sectionId = [];
     $classes = []; // section key => list of [class id, teacher id, semester]
-    $insertSection = $pdo->prepare('INSERT INTO sections (school_year_id, grade_level, strand, name, adviser_id) VALUES (?, ?, ?, ?, ?)');
-    $insertClass = $pdo->prepare('INSERT INTO class_assignments (section_id, subject_id, teacher_id, semester) VALUES (?, ?, ?, ?)');
+    $insertSection = $pdo->prepare('INSERT INTO sections (workspace_id, school_year_id, grade_level, strand, name, adviser_id) VALUES (1, ?, ?, ?, ?, ?)');
+    $insertClass = $pdo->prepare('INSERT INTO class_assignments (workspace_id, section_id, subject_id, teacher_id, semester) VALUES (1, ?, ?, ?, ?)');
     foreach ($sections as $key => [$year, $level, $strand, $name, $adviser, $sectionSubjects]) {
         $insertSection->execute([$yearId[$year], $level, $strand, $name, $userId[$adviser]]);
         $sectionId[$key] = (int) $pdo->lastInsertId();
@@ -135,7 +141,7 @@ function seed_demo_school(PDO $pdo): void
         ['100000260020', 'Ocampo', 'Jasmine', 'Castro', 'F', '2010-10-01'],
     ];
     $insertStudent = $pdo->prepare(
-        'INSERT INTO students (lrn, last_name, first_name, middle_name, sex, birthdate, qr_token, parent_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO students (workspace_id, lrn, last_name, first_name, middle_name, sex, birthdate, qr_token, parent_code) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     $enroll = $pdo->prepare('INSERT INTO enrollments (student_id, section_id, school_year_id) VALUES (?, ?, ?)');
     $studentIds = [];
@@ -213,7 +219,7 @@ function seed_demo_attendance(PDO $pdo): bool
     }
 
     // Parents
-    $insertParent = $pdo->prepare('INSERT INTO parents (full_name, login, password_hash) VALUES (?, ?, ?)');
+    $insertParent = $pdo->prepare('INSERT INTO parents (workspace_id, full_name, login, password_hash) VALUES (1, ?, ?, ?)');
     $link = $pdo->prepare('INSERT INTO parent_students (parent_id, student_id, relationship) VALUES (?, ?, ?)');
     $parentOf = [];
     foreach ([['Maria Dela Cruz', '09171234567', $juan, 'mother'], ['Ramon Aquino', 'ramon.aquino@example.com', $rafael, 'father']] as [$name, $login, $child, $relationship]) {
@@ -235,7 +241,7 @@ function seed_demo_attendance(PDO $pdo): bool
     $lastDay = end($days);
     $startTimes = ['07:30', '08:30', '09:30', '10:30', '13:00', '14:00', '15:00'];
 
-    $insertSession = $pdo->prepare('INSERT INTO class_sessions (class_assignment_id, session_date, starts_at, opened_by, finished_at) VALUES (?, ?, ?, ?, ?)');
+    $insertSession = $pdo->prepare('INSERT INTO class_sessions (workspace_id, class_assignment_id, session_date, starts_at, opened_by, finished_at) VALUES (1, ?, ?, ?, ?, ?)');
     $insertMark = $pdo->prepare('INSERT INTO session_attendance (session_id, student_id, status, source, marked_at, note, recorded_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
     $notify = $pdo->prepare('INSERT INTO parent_notifications (parent_id, student_id, type, message, link, created_at, read_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
     $twoDaysAgo = date('Y-m-d', strtotime('-2 days'));
@@ -343,7 +349,7 @@ function seed_demo_extras(PDO $pdo): void
 
     // Calendar
     $pdo->exec("DELETE FROM calendar_events WHERE details LIKE '%(demo)%'");
-    $event = $pdo->prepare('INSERT INTO calendar_events (title, details, type, starts_on, ends_on, created_by) VALUES (?, ?, ?, ?, ?, ?)');
+    $event = $pdo->prepare('INSERT INTO calendar_events (workspace_id, title, details, type, starts_on, ends_on, created_by) VALUES (1, ?, ?, ?, ?, ?, ?)');
     foreach ([
         ['Parent-Teacher Conference', '1st semester report cards, 1:00 PM in each classroom (demo)', 'meeting', '2026-11-28', '2026-11-28'],
         ['Bonifacio Day', 'Regular holiday, no classes (demo)', 'holiday', '2026-11-30', '2026-11-30'],
@@ -356,7 +362,7 @@ function seed_demo_extras(PDO $pdo): void
 
     // Announcements (only if there are none yet)
     if (!(int) $pdo->query('SELECT COUNT(*) FROM announcements')->fetchColumn()) {
-        $post = $pdo->prepare('INSERT INTO announcements (title, body, audience, pinned, posted_by, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+        $post = $pdo->prepare('INSERT INTO announcements (workspace_id, title, body, audience, pinned, posted_by, created_at) VALUES (1, ?, ?, ?, ?, ?, ?)');
         $post->execute(['Parent-Teacher Conference on Nov 28', "1st semester report cards will be discussed.\nPlease come to your child's classroom at 1:00 PM.", 'everyone', 1, $adminId, date('Y-m-d H:i:s', strtotime('-2 days'))]);
         $post->execute(['QR ID cards are now used for class attendance', 'Subject teachers scan your QR ID at the start of every class. Bring your ID every day. Lost cards can be replaced at the registrar.', 'families', 0, $adminId, date('Y-m-d H:i:s', strtotime('-6 days'))]);
         $post->execute(['Q2 grades due December 18', 'Please upload and publish Quarter 2 grades by December 18. After that, changes need a change request.', 'staff', 0, $adminId, date('Y-m-d H:i:s', strtotime('-4 days'))]);
@@ -412,7 +418,7 @@ function seed_demo_classroom(PDO $pdo): void
 
     // Class posts
     if (!(int) $one('SELECT COUNT(*) FROM class_posts')) {
-        $post = $pdo->prepare('INSERT INTO class_posts (class_assignment_id, title, body, created_by, created_at) SELECT ca.id, ?, ?, ca.teacher_id, ? FROM class_assignments ca WHERE ca.id = ?');
+        $post = $pdo->prepare('INSERT INTO class_posts (workspace_id, class_assignment_id, title, body, created_by, created_at) SELECT ca.workspace_id, ca.id, ?, ?, ca.teacher_id, ? FROM class_assignments ca WHERE ca.id = ?');
         foreach ([
             ['GENPHYS1', 'Einstein', 'Module 4: Work, Energy and Power', "Read Module 4, pages 45–60, and answer the activity on page 61.\nSubmit your answers on Friday.", '-3 days'],
             ['GENPHYS1', 'Einstein', 'Reminder: bring a scientific calculator', 'We will solve problems in class on Monday.', '-1 day'],
@@ -427,7 +433,7 @@ function seed_demo_classroom(PDO $pdo): void
     $staffId = (int) $one("SELECT id FROM users WHERE username = 'msantos'");
     $juan = (int) $one("SELECT id FROM students WHERE lrn = '100000260001'");
     if ($parentId && $staffId && $juan && !(int) $one('SELECT COUNT(*) FROM message_threads')) {
-        $pdo->prepare('INSERT INTO message_threads (parent_id, staff_id, student_id, subject, created_at, last_message_at) VALUES (?, ?, ?, ?, ?, ?)')
+        $pdo->prepare('INSERT INTO message_threads (workspace_id, parent_id, staff_id, student_id, subject, created_at, last_message_at) VALUES (1, ?, ?, ?, ?, ?, ?)')
             ->execute([$parentId, $staffId, $juan, 'Missed quiz on Monday', date('Y-m-d H:i:s', strtotime('-1 day 09:10')), date('Y-m-d H:i:s', strtotime('-1 day 13:25'))]);
         $threadId = (int) $pdo->lastInsertId();
         $message = $pdo->prepare('INSERT INTO messages (thread_id, sender_type, body, created_at, read_at) VALUES (?, ?, ?, ?, ?)');
@@ -437,7 +443,7 @@ function seed_demo_classroom(PDO $pdo): void
 
     // A document request waiting for the registrar
     if ($juan && $parentId && !(int) $one('SELECT COUNT(*) FROM document_requests')) {
-        $pdo->prepare("INSERT INTO document_requests (student_id, requested_by_type, requested_by_id, doc_type, purpose, copies) VALUES (?, 'parent', ?, 'good_moral', 'College admission', 1)")
+        $pdo->prepare("INSERT INTO document_requests (workspace_id, student_id, requested_by_type, requested_by_id, doc_type, purpose, copies) VALUES (1, ?, 'parent', ?, 'good_moral', 'College admission', 1)")
             ->execute([$juan, $parentId]);
     }
 }

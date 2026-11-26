@@ -27,7 +27,7 @@ if (is_post() && post('action') === 'create') {
         $errors[] = 'Choose a relationship.';
     }
     if ($form['lrn'] !== '') {
-        $student = db_one('SELECT * FROM students WHERE lrn = ?', [normalize_lrn($form['lrn'])]);
+        $student = db_one('SELECT * FROM students WHERE lrn = ? AND workspace_id = ?', [normalize_lrn($form['lrn']), ws()]);
         if (!$student) {
             $errors[] = 'No learner has that LRN.';
         }
@@ -38,8 +38,8 @@ if (is_post() && post('action') === 'create') {
         $pdo->beginTransaction();
         try {
             db_exec(
-                'INSERT INTO parents (full_name, login, password_hash, must_change_password) VALUES (?, ?, ?, 1)',
-                [$form['full_name'], $login, password_hash($password, PASSWORD_DEFAULT)]
+                'INSERT INTO parents (workspace_id, full_name, login, password_hash, must_change_password) VALUES (?, ?, ?, ?, 1)',
+                [ws(), $form['full_name'], $login, password_hash($password, PASSWORD_DEFAULT)]
             );
             $parentId = (int) $pdo->lastInsertId();
             if ($student) {
@@ -56,12 +56,12 @@ if (is_post() && post('action') === 'create') {
 }
 
 $q = get_str('q');
-$params = [];
-$where = '';
+$params = [ws()];
+$where = 'WHERE p.workspace_id = ?';
 if ($q !== '') {
     $like = '%' . addcslashes($q, '%_\\') . '%';
-    $where = 'WHERE p.full_name LIKE ? OR p.login LIKE ? OR st.lrn LIKE ? OR st.last_name LIKE ? OR st.first_name LIKE ?';
-    $params = [$like, $like, $like, $like, $like];
+    $where .= ' AND (p.full_name LIKE ? OR p.login LIKE ? OR st.lrn LIKE ? OR st.last_name LIKE ? OR st.first_name LIKE ?)';
+    array_push($params, $like, $like, $like, $like, $like);
 }
 $parents = db_all(
     "SELECT p.*, GROUP_CONCAT(CONCAT(st.first_name, ' ', st.last_name) ORDER BY st.first_name SEPARATOR ', ') AS children

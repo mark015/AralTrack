@@ -54,6 +54,13 @@ if (is_post()) {
         [$student, $error] = check_parent_link_code($form['lrn'], $form['code']);
         if ($error) {
             $errors[] = $error;
+        } else {
+            Workspace::switchTo((int) $student['workspace_id']); // the learner's school decides
+            if (Workspace::isSuspended()) {
+                $errors[] = Workspace::suspendedMessage();
+            } elseif (!Access::parentRegistrationOpen()) {
+                $errors[] = 'The school is not accepting new parent accounts right now. Please ask the registrar.';
+            }
         }
     }
 
@@ -62,8 +69,8 @@ if (is_post()) {
         $pdo->beginTransaction();
         try {
             db_exec(
-                'INSERT INTO parents (full_name, login, password_hash, privacy_accepted_at) VALUES (?, ?, ?, ?)',
-                [$form['full_name'], $login, password_hash($password, PASSWORD_DEFAULT), date('Y-m-d H:i:s')]
+                'INSERT INTO parents (workspace_id, full_name, login, password_hash, privacy_accepted_at) VALUES (?, ?, ?, ?, ?)',
+                [ws(), $form['full_name'], $login, password_hash($password, PASSWORD_DEFAULT), date('Y-m-d H:i:s')]
             );
             $parentId = (int) $pdo->lastInsertId();
             db_exec('INSERT INTO parent_students (parent_id, student_id, relationship) VALUES (?, ?, ?)', [$parentId, $student['id'], $form['relationship']]);
@@ -76,7 +83,7 @@ if (is_post()) {
             $errors[] = 'An account with this mobile number or email already exists. Sign in, then use "Add a child".';
         }
         if (!$errors) {
-            login_parent(['id' => $parentId, 'full_name' => $form['full_name']]);
+            login_parent(['id' => $parentId, 'full_name' => $form['full_name'], 'workspace_id' => ws()]);
             Access::logLogin('parent', $parentId, (string) normalize_parent_login($form['login']), true, 'registered');
             flash('success', "Your account is ready. {$student['first_name']}'s attendance and grades are below.");
             redirect('parent/index.php');

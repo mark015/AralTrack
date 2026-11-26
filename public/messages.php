@@ -73,7 +73,7 @@ if (is_post()) {
         } elseif ($body !== null) {
             [$studentId, $otherId] = array_map('intval', explode(':', $form['to']));
             [$parentId, $staffId] = $who === 'parent' ? [$myId, $otherId] : [$otherId, $myId];
-            db_exec('INSERT INTO message_threads (parent_id, staff_id, student_id, subject) VALUES (?, ?, ?, ?)', [$parentId, $staffId, $studentId, $form['subject']]);
+            db_exec('INSERT INTO message_threads (workspace_id, parent_id, staff_id, student_id, subject) VALUES (?, ?, ?, ?, ?)', [ws(), $parentId, $staffId, $studentId, $form['subject']]);
             $threadId = (int) db()->lastInsertId();
             Messages::send($threadId, $who, $body);
             flash('success', 'Message sent.');

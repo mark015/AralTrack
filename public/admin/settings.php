@@ -32,6 +32,9 @@ if (is_post()) {
         $before[$key] = settings_cache()[$key] ?? '';
     }
     save_settings($values);
+    if (($values['school_name'] ?? '') !== '') {
+        db_exec('UPDATE workspaces SET name = ? WHERE id = ?', [mb_substr($values['school_name'], 0, 150), ws()]); // the name the system knows the school by
+    }
     if ($changes = Access::diff($before, $values)) {
         Access::log('settings', 'Changed settings: ' . implode(', ', array_map(static fn ($k) => $fields[$k][0] ?? ($k === 'current_semester' ? 'Current semester' : $k), array_keys($changes))), 'settings', null, $changes);
     }

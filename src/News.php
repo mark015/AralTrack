@@ -26,27 +26,27 @@ final class News
         $audiences = $viewer === 'staff' ? ['everyone', 'staff'] : ['everyone', 'families'];
         return db_all(
             'SELECT a.*, u.full_name AS author FROM announcements a LEFT JOIN users u ON u.id = a.posted_by
-              WHERE a.audience IN (?, ?) ORDER BY a.pinned DESC, a.id DESC LIMIT ' . max(1, $limit),
-            $audiences
+              WHERE a.audience IN (?, ?) AND a.workspace_id = ? ORDER BY a.pinned DESC, a.id DESC LIMIT ' . max(1, $limit),
+            [...$audiences, ws()]
         );
     }
 
     public static function upcoming(int $limit = 8): array
     {
-        return db_all('SELECT * FROM calendar_events WHERE ends_on >= ? ORDER BY starts_on, id LIMIT ' . max(1, $limit), [date('Y-m-d')]);
+        return db_all('SELECT * FROM calendar_events WHERE ends_on >= ? AND workspace_id = ? ORDER BY starts_on, id LIMIT ' . max(1, $limit), [date('Y-m-d'), ws()]);
     }
 
     public static function between(string $from, string $to): array
     {
-        return db_all('SELECT * FROM calendar_events WHERE starts_on <= ? AND ends_on >= ? ORDER BY starts_on, id', [$to, $from]);
+        return db_all('SELECT * FROM calendar_events WHERE starts_on <= ? AND ends_on >= ? AND workspace_id = ? ORDER BY starts_on, id', [$to, $from, ws()]);
     }
 
     /** A holiday or class suspension covering $date, if any. */
     public static function noClassEvent(string $date): ?array
     {
         return db_one(
-            "SELECT * FROM calendar_events WHERE type IN ('holiday', 'suspension') AND ? BETWEEN starts_on AND ends_on ORDER BY id DESC LIMIT 1",
-            [$date]
+            "SELECT * FROM calendar_events WHERE type IN ('holiday', 'suspension') AND ? BETWEEN starts_on AND ends_on AND workspace_id = ? ORDER BY id DESC LIMIT 1",
+            [$date, ws()]
         );
     }
 
@@ -54,15 +54,15 @@ final class News
     public static function post(string $title, string $body, string $audience, bool $pinned, int $userId): int
     {
         db_exec(
-            'INSERT INTO announcements (title, body, audience, pinned, posted_by) VALUES (?, ?, ?, ?, ?)',
-            [$title, $body, $audience, $pinned ? 1 : 0, $userId]
+            'INSERT INTO announcements (workspace_id, title, body, audience, pinned, posted_by) VALUES (?, ?, ?, ?, ?, ?)',
+            [ws(), $title, $body, $audience, $pinned ? 1 : 0, $userId]
         );
         $id = (int) db()->lastInsertId();
         if ($audience !== 'staff' && Access::on('news')) {
             db_exec(
                 "INSERT INTO parent_notifications (parent_id, student_id, type, message, link)
-                 SELECT id, NULL, 'announcement', ?, ? FROM parents p WHERE is_active = 1 AND " . Access::parentAllowedSql('news', 'p.id'),
-                ['New announcement: ' . mb_substr($title, 0, 400), 'news.php#a' . $id]
+                 SELECT id, NULL, 'announcement', ?, ? FROM parents p WHERE is_active = 1 AND p.workspace_id = ? AND " . Access::parentAllowedSql('news', 'p.id'),
+                ['New announcement: ' . mb_substr($title, 0, 400), 'news.php#a' . $id, ws()]
             );
         }
         return $id;

@@ -4,12 +4,13 @@
         <div class="d-flex align-items-center gap-2">
             <?= brand_mark(30) ?>
             <div class="lh-sm">
-                <div class="fw-semibold text-body"><?= e(setting('school_name')) ?></div>
-                <div><?= e(config('app_name')) ?> · Senior High School</div>
+                <div class="fw-semibold text-body"><?= e(Workspace::known() ? setting('school_name') : config('app_name')) ?></div>
+                <div><?= Workspace::known() ? e(config('app_name')) . ' · Senior High School' : 'Grades, QR attendance and parent updates for schools' ?></div>
             </div>
         </div>
         <nav class="d-flex flex-wrap gap-3" aria-label="Footer">
-            <a href="<?= e(url('index.php')) ?>"><i class="bi bi-mortarboard me-1"></i>Learners</a>
+            <a href="<?= e(url('index.php')) ?>"><i class="bi bi-house me-1"></i>Home</a>
+            <a href="<?= e(url('learner/login.php')) ?>"><i class="bi bi-mortarboard me-1"></i>Learners</a>
             <a href="<?= e(url('parent/login.php')) ?>"><i class="bi bi-people me-1"></i>Parents</a>
             <a href="<?= e(url('staff/login.php')) ?>"><i class="bi bi-person-badge me-1"></i>Teachers &amp; staff</a>
             <a href="<?= e(url('privacy.php')) ?>"><i class="bi bi-shield-lock me-1"></i>Privacy notice</a>

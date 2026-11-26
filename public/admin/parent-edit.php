@@ -3,7 +3,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin');
-$parent = db_one('SELECT * FROM parents WHERE id = ?', [get_int('id')]);
+$parent = db_one('SELECT * FROM parents WHERE id = ? AND workspace_id = ?', [get_int('id'), ws()]);
 if (!$parent) {
     abort(404, 'That parent account does not exist.');
 }
@@ -20,7 +20,7 @@ if (is_post()) {
                 break;
             }
             try {
-                db_exec('UPDATE parents SET full_name = ?, login = ? WHERE id = ?', [$name, $login, $parentId]);
+                db_exec('UPDATE parents SET full_name = ?, login = ? WHERE id = ? AND workspace_id = ?', [$name, $login, $parentId, ws()]);
                 Access::log('account', "Updated the parent account of {$name}", 'parent', $parentId, ['full_name' => [$parent['full_name'], $name], 'login' => [$parent['login'], $login]]);
                 flash('success', 'Saved.');
             } catch (PDOException $e) {
@@ -37,7 +37,7 @@ if (is_post()) {
                 flash('danger', 'The temporary password must be at least 8 characters.');
                 break;
             }
-            db_exec('UPDATE parents SET password_hash = ?, must_change_password = 1 WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $parentId]);
+            db_exec('UPDATE parents SET password_hash = ?, must_change_password = 1 WHERE id = ? AND workspace_id = ?', [password_hash($password, PASSWORD_DEFAULT), $parentId, ws()]);
             db_exec("DELETE FROM login_attempts WHERE scope = 'parent' AND identifier = ?", [$parent['login']]);
             Access::signOut('parent', $parentId);
             Access::log('account', "Reset the password of parent {$parent['full_name']}", 'parent', $parentId);
@@ -45,13 +45,13 @@ if (is_post()) {
             break;
 
         case 'toggle':
-            db_exec('UPDATE parents SET is_active = 1 - is_active, blocked_reason = NULL WHERE id = ?', [$parentId]);
+            db_exec('UPDATE parents SET is_active = 1 - is_active, blocked_reason = NULL WHERE id = ? AND workspace_id = ?', [$parentId, ws()]);
             Access::log('account', ($parent['is_active'] ? 'Deactivated' : 'Activated') . " the parent account of {$parent['full_name']}", 'parent', $parentId);
             flash('success', $parent['is_active'] ? 'This parent can no longer sign in.' : 'This parent can sign in again.');
             break;
 
         case 'link':
-            $student = db_one('SELECT * FROM students WHERE lrn = ?', [normalize_lrn(post('lrn'))]);
+            $student = db_one('SELECT * FROM students WHERE lrn = ? AND workspace_id = ?', [normalize_lrn(post('lrn')), ws()]);
             $relationship = post('relationship');
             if (!$student || !isset(RELATIONSHIPS[$relationship])) {
                 flash('danger', 'Enter a learner\'s LRN and choose the relationship.');
@@ -65,7 +65,7 @@ if (is_post()) {
             break;
 
         case 'unlink':
-            $unlinked = db_one('SELECT * FROM students WHERE id = ?', [post_int('student_id')]);
+            $unlinked = db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [post_int('student_id'), ws()]);
             db_exec('DELETE FROM parent_students WHERE parent_id = ? AND student_id = ?', [$parentId, post_int('student_id')]);
             Access::log('account', 'Unlinked ' . ($unlinked ? student_name($unlinked) : 'a learner') . " from parent {$parent['full_name']}", 'parent', $parentId);
             flash('success', 'Learner unlinked. This parent can no longer see their attendance and grades.');

@@ -4,9 +4,12 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin', 'principal');
-$years = db_all('SELECT * FROM school_years ORDER BY label DESC');
+$years = db_all('SELECT * FROM school_years WHERE workspace_id = ? ORDER BY label DESC', [ws()]);
 $active = active_school_year();
 $syId = get_int('sy') ?: (int) ($active['id'] ?? ($years[0]['id'] ?? 0));
+if (!in_array($syId, array_map('intval', array_column($years, 'id')), true)) {
+    $syId = (int) (active_school_year()['id'] ?? 0); // a school year of this school only
+}
 $sy = null;
 foreach ($years as $y) {
     if ((int) $y['id'] === $syId) {

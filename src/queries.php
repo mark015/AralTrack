@@ -3,14 +3,14 @@ declare(strict_types=1);
 
 function active_school_year(): ?array
 {
-    return db_one('SELECT * FROM school_years WHERE is_active = 1 LIMIT 1');
+    return db_one('SELECT * FROM school_years WHERE is_active = 1 AND workspace_id = ? LIMIT 1', [ws()]);
 }
 
 /** One class (subject taught in a section) with its names, or null. */
 function class_info(int $classId): ?array
 {
     return db_one(
-        'SELECT ca.id, ca.section_id, ca.subject_id, ca.teacher_id, ca.semester,
+        'SELECT ca.id, ca.workspace_id, ca.section_id, ca.subject_id, ca.teacher_id, ca.semester,
                 sub.code AS subject_code, sub.name AS subject_name, sub.type AS subject_type,
                 sec.grade_level, sec.strand, sec.name AS section_name, sec.school_year_id,
                 sy.label AS sy_label, u.full_name AS teacher_name
@@ -19,8 +19,8 @@ function class_info(int $classId): ?array
            JOIN sections sec    ON sec.id = ca.section_id
            JOIN school_years sy ON sy.id = sec.school_year_id
            JOIN users u         ON u.id = ca.teacher_id
-          WHERE ca.id = ?',
-        [$classId]
+          WHERE ca.id = ? AND ca.workspace_id = ?',
+        [$classId, ws()]
     );
 }
 
@@ -122,8 +122,8 @@ function class_publications(int $classId): array
 function save_grade_changes(int $classId, array $changes, int $userId, string $source = 'grid'): void
 {
     $schoolYearId = (int) db_value(
-        'SELECT s.school_year_id FROM class_assignments ca JOIN sections s ON s.id = ca.section_id WHERE ca.id = ?',
-        [$classId]
+        'SELECT s.school_year_id FROM class_assignments ca JOIN sections s ON s.id = ca.section_id WHERE ca.id = ? AND ca.workspace_id = ?',
+        [$classId, ws()]
     );
     if ($source !== 'change_request') {
         foreach ($changes as [, $quarter]) {
@@ -141,7 +141,7 @@ function save_grade_changes(int $classId, array $changes, int $userId, string $s
     );
     $delete = $pdo->prepare('DELETE FROM grades WHERE student_id = ? AND class_assignment_id = ? AND quarter = ?');
     $history = $pdo->prepare(
-        'INSERT INTO grade_history (student_id, class_assignment_id, quarter, old_grade, new_grade, source, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO grade_history (workspace_id, student_id, class_assignment_id, quarter, old_grade, new_grade, source, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
 
     $pdo->beginTransaction();
@@ -159,7 +159,7 @@ function save_grade_changes(int $classId, array $changes, int $userId, string $s
             } else {
                 $upsert->execute([$studentId, $classId, $quarter, $new, $userId]);
             }
-            $history->execute([$studentId, $classId, $quarter, $old, $new, $source, $userId]);
+            $history->execute([ws(), $studentId, $classId, $quarter, $old, $new, $source, $userId]);
         }
         $pdo->commit();
     } catch (Throwable $e) {
@@ -170,9 +170,11 @@ function save_grade_changes(int $classId, array $changes, int $userId, string $s
 
 /**
  * Checks a learner's LRN + parent link code, as typed by a parent. Locks after repeated failures.
+ * The same LRN can be in several schools; the link code says which learner record it is. A signed-in parent
+ * passes their school ($workspaceId) and can only link learners of that school.
  * @return array{0: ?array, 1: ?string} [learner, error message]
  */
-function check_parent_link_code(string $lrnTyped, string $codeTyped): array
+function check_parent_link_code(string $lrnTyped, string $codeTyped, ?int $workspaceId = null): array
 {
     $lrn = normalize_lrn($lrnTyped);
     $code = normalize_parent_code($codeTyped);
@@ -186,13 +188,38 @@ function check_parent_link_code(string $lrnTyped, string $codeTyped): array
     if (RateLimiter::isLocked('link', $lrn, $ip)) {
         return [null, 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.'];
     }
-    $student = db_one('SELECT * FROM students WHERE lrn = ?', [$lrn]);
-    if (!$student || !hash_equals($student['parent_code'], $code)) {
+    $student = null;
+    foreach (db_all('SELECT * FROM students WHERE lrn = ?', [$lrn]) as $candidate) {
+        $sameSchool = $workspaceId === null || (int) $candidate['workspace_id'] === $workspaceId;
+        if ($sameSchool && hash_equals((string) $candidate['parent_code'], $code)) {
+            $student = $candidate;
+        }
+    }
+    if (!$student) {
         RateLimiter::recordFailure('link', $lrn, $ip);
         return [null, "The LRN and link code don't match. Check the slip from the school, or ask the adviser for a new code."];
     }
     RateLimiter::clear('link', $lrn);
     return [$student, null];
+}
+
+/**
+ * The learner record a typed LRN signs in to. The same LRN can be in more than one school (a transferee, or a
+ * learner whose teachers use the system on their own): an active school first, then the record enrolled in its
+ * school's current school year, then the newest.
+ */
+function learner_for_lrn(string $lrn): ?array
+{
+    return db_one(
+        "SELECT st.* FROM students st
+           JOIN workspaces w         ON w.id = st.workspace_id
+           LEFT JOIN school_years sy ON sy.workspace_id = st.workspace_id AND sy.is_active = 1
+           LEFT JOIN enrollments e   ON e.student_id = st.id AND e.school_year_id = sy.id
+          WHERE st.lrn = ?
+          ORDER BY w.status = 'active' DESC, e.id IS NOT NULL DESC, st.status = 'active' DESC, st.id DESC
+          LIMIT 1",
+        [$lrn]
+    );
 }
 
 /** Staff who see every learner (not just their own classes or advisory). */
@@ -214,7 +241,7 @@ function advised_section_ids(array $staff): array
 function staff_can_see_learner(array $staff, int $studentId): bool
 {
     if (sees_all_learners($staff)) {
-        return true;
+        return (bool) db_value('SELECT 1 FROM students WHERE id = ? AND workspace_id = ?', [$studentId, ws()]);
     }
     return (bool) db_value(
         'SELECT 1 FROM enrollments e JOIN sections s ON s.id = e.section_id
@@ -238,15 +265,15 @@ function when_label(string $datetime): string
 /** Active staff accounts, for "adviser" and "teacher" dropdowns. */
 function staff_options(): array
 {
-    return db_all('SELECT id, full_name, role FROM users WHERE is_active = 1 ORDER BY full_name');
+    return db_all('SELECT id, full_name, role FROM users WHERE is_active = 1 AND workspace_id = ? ORDER BY full_name', [ws()]);
 }
 
 /** Sections in a school year, for dropdowns. */
 function section_options(int $schoolYearId): array
 {
     return db_all(
-        'SELECT id, grade_level, strand, name AS section_name FROM sections WHERE school_year_id = ? ORDER BY grade_level, strand, name',
-        [$schoolYearId]
+        'SELECT id, grade_level, strand, name AS section_name FROM sections WHERE school_year_id = ? AND workspace_id = ? ORDER BY grade_level, strand, name',
+        [$schoolYearId, ws()]
     );
 }
 
@@ -258,9 +285,10 @@ function enroll_student(int $studentId, int $sectionId): void
 {
     db_exec(
         'INSERT INTO enrollments (student_id, section_id, school_year_id)
-         SELECT ?, id, school_year_id FROM sections WHERE id = ?
+         SELECT st.id, s.id, s.school_year_id FROM sections s JOIN students st ON st.id = ? AND st.workspace_id = s.workspace_id
+          WHERE s.id = ? AND s.workspace_id = ?
          ON DUPLICATE KEY UPDATE section_id = VALUES(section_id)',
-        [$studentId, $sectionId]
+        [$studentId, $sectionId, ws()]
     );
 }
 
@@ -281,7 +309,7 @@ function validate_student_form(int $exceptId = 0): array
     $errors = [];
     if (!is_valid_lrn($data['lrn'])) {
         $errors[] = 'The LRN must be exactly 12 digits.';
-    } elseif (db_value('SELECT id FROM students WHERE lrn = ? AND id <> ?', [$data['lrn'], $exceptId])) {
+    } elseif (db_value('SELECT id FROM students WHERE lrn = ? AND id <> ? AND workspace_id = ?', [$data['lrn'], $exceptId, ws()])) {
         $errors[] = 'Another learner already has this LRN.';
     }
     if ($data['last_name'] === '' || $data['first_name'] === '') {

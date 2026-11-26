@@ -11,7 +11,7 @@ if (is_post()) {
     if (!isset(RELATIONSHIPS[$form['relationship']])) {
         $error = 'Choose your relationship to the learner.';
     } else {
-        [$student, $error] = check_parent_link_code($form['lrn'], $form['code']);
+        [$student, $error] = check_parent_link_code($form['lrn'], $form['code'], ws());
         if ($student) {
             $added = db_exec(
                 'INSERT IGNORE INTO parent_students (parent_id, student_id, relationship) VALUES (?, ?, ?)',

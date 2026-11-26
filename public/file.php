@@ -9,7 +9,10 @@ $kind = get_str('kind');
 $id = get_int('id');
 $staff = current_staff() ? require_staff() : null;
 $parent = !$staff && current_parent() ? require_parent() : null;
-$learnerId = current_student_id();
+$learnerId = !$staff && !$parent && current_student_id() !== null ? (int) require_student()['id'] : null;
+if (!$staff && !$parent && $learnerId === null) {
+    abort(404, 'That file does not exist.'); // nobody signed in
+}
 
 /** True when the signed-in person may see this learner's files. */
 $canSeeLearner = static function (int $studentId) use ($staff, $parent, $learnerId): bool {
@@ -24,7 +27,7 @@ $canSeeLearner = static function (int $studentId) use ($staff, $parent, $learner
 
 switch ($kind) {
     case 'excuse':
-        $row = db_one('SELECT * FROM excuse_letters WHERE id = ?', [$id]);
+        $row = db_one('SELECT * FROM excuse_letters WHERE id = ? AND workspace_id = ?', [$id, ws()]);
         if ($row && $row['file_path'] && $canSeeLearner((int) $row['student_id'])) {
             Files::send($row['file_path'], $row['file_name'] ?? 'attachment');
         }
@@ -35,8 +38,8 @@ switch ($kind) {
             break;
         }
         $row = db_one(
-            'SELECT cp.*, ca.section_id, ca.teacher_id FROM class_posts cp JOIN class_assignments ca ON ca.id = cp.class_assignment_id WHERE cp.id = ?',
-            [$id]
+            'SELECT cp.*, ca.section_id, ca.teacher_id FROM class_posts cp JOIN class_assignments ca ON ca.id = cp.class_assignment_id WHERE cp.id = ? AND cp.workspace_id = ?',
+            [$id, ws()]
         );
         if ($row && $row['file_path']) {
             $allowed = match (true) {
@@ -55,7 +58,7 @@ switch ($kind) {
         break;
 
     case 'photo':
-        $row = db_one('SELECT id, photo_path, lrn FROM students WHERE id = ?', [$id]);
+        $row = db_one('SELECT id, photo_path, lrn FROM students WHERE id = ? AND workspace_id = ?', [$id, ws()]);
         if ($row && $row['photo_path'] && ($staff !== null || $canSeeLearner((int) $row['id']))) {
             Files::send($row['photo_path'], 'learner-' . $row['lrn'] . '.' . pathinfo($row['photo_path'], PATHINFO_EXTENSION));
         }

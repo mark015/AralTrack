@@ -40,8 +40,8 @@ if (is_post() && post('action') === 'request_change') {
         flash('danger', 'Explain the reason for the change.');
     } else {
         db_exec(
-            'INSERT INTO grade_change_requests (student_id, class_assignment_id, quarter, old_grade, new_grade, reason, requested_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [$studentId, $classId, $quarter, $grades[$studentId][$quarter] ?? null, $newGrade, $reason, $staff['id']]
+            'INSERT INTO grade_change_requests (workspace_id, student_id, class_assignment_id, quarter, old_grade, new_grade, reason, requested_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [ws(), $studentId, $classId, $quarter, $grades[$studentId][$quarter] ?? null, $newGrade, $reason, $staff['id']]
         );
         flash('success', 'Change request sent to the registrar for approval.');
     }

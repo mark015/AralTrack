@@ -5,20 +5,23 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff();
 $all = sees_all_learners($staff);
-$years = db_all('SELECT * FROM school_years ORDER BY label DESC');
+$years = db_all('SELECT * FROM school_years WHERE workspace_id = ? ORDER BY label DESC', [ws()]);
 $syId = get_int('sy') ?: (int) (active_school_year()['id'] ?? 0);
+if (!in_array($syId, array_map('intval', array_column($years, 'id')), true)) {
+    $syId = (int) (active_school_year()['id'] ?? 0); // a school year of this school only
+}
 $sections = db_all(
     'SELECT s.*, s.name AS section_name, u.full_name AS adviser, (SELECT COUNT(*) FROM enrollments e WHERE e.section_id = s.id) AS learners
        FROM sections s LEFT JOIN users u ON u.id = s.adviser_id
-      WHERE s.school_year_id = ?' . ($all ? '' : ' AND s.adviser_id = ' . (int) $staff['id']) . '
+      WHERE s.school_year_id = ? AND s.workspace_id = ?' . ($all ? '' : ' AND s.adviser_id = ' . (int) $staff['id']) . '
       ORDER BY s.grade_level, s.strand, s.name',
-    [$syId]
+    [$syId, ws()]
 );
 if (!$all && !$sections && !advised_section_ids($staff)) {
     abort(403, 'Only advisers, the registrar, the principal and the guidance counselor can open school forms.');
 }
 $months = [];
-$sy = db_one('SELECT * FROM school_years WHERE id = ?', [$syId]);
+$sy = db_one('SELECT * FROM school_years WHERE id = ? AND workspace_id = ?', [$syId, ws()]);
 if ($sy) {
     [$start] = array_map('intval', explode('-', $sy['label']));
     for ($m = 6; $m <= 17; $m++) {

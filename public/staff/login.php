@@ -23,7 +23,13 @@ if (is_post()) {
     } else {
         $user = db_one('SELECT * FROM users WHERE username = ?', [$username]);
         $passwordOk = password_verify($password, $user['password_hash'] ?? DUMMY_PASSWORD_HASH);
-        if ($user && $passwordOk && !$user['is_active']) {
+        if ($user && $passwordOk) {
+            Workspace::switchTo((int) $user['workspace_id']); // the account's school: its sign-in switches
+        }
+        if ($user && $passwordOk && Workspace::isSuspended()) {
+            $error = Workspace::suspendedMessage();
+            Access::logLogin('staff', (int) $user['id'], $username, false, 'school paused');
+        } elseif ($user && $passwordOk && !$user['is_active']) {
             // Only after the right password, so the form can't be used to find out which accounts exist.
             $error = 'Your account was turned off by the school.' . ($user['blocked_reason'] ? ' Reason: ' . $user['blocked_reason'] . '.' : '') . ' Please contact the Super Admin.';
             Access::logLogin('staff', (int) $user['id'], $username, false, 'turned off');
@@ -80,7 +86,7 @@ require APP_ROOT . '/templates/header.php';
             </div>
         </div>
         <p class="text-center small text-secondary mt-3">
-            Learners: <a href="<?= e(url('index.php')) ?>">check your grades here</a>.
+            Learners: <a href="<?= e(url('learner/login.php')) ?>">check your grades here</a>.
         </p>
     </div>
 </div>

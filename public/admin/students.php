@@ -21,8 +21,8 @@ if (is_post()) {
         $form = $data + ['section_id' => $sectionId];
         if (!$errors) {
             db_exec(
-                'INSERT INTO students (lrn, last_name, first_name, middle_name, sex, birthdate, qr_token, parent_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [$data['lrn'], $data['last_name'], $data['first_name'], $data['middle_name'] ?: null, $data['sex'] ?: null, $data['birthdate'], new_qr_token(), new_parent_code()]
+                'INSERT INTO students (workspace_id, lrn, last_name, first_name, middle_name, sex, birthdate, qr_token, parent_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [ws(), $data['lrn'], $data['last_name'], $data['first_name'], $data['middle_name'] ?: null, $data['sex'] ?: null, $data['birthdate'], new_qr_token(), new_parent_code()]
             );
             if ($sectionId) {
                 enroll_student((int) db()->lastInsertId(), $sectionId);
@@ -51,11 +51,11 @@ if (is_post()) {
 }
 
 $q = get_str('q');
-$params = [$sy['id'] ?? 0];
-$where = '';
+$params = [$sy['id'] ?? 0, ws()];
+$where = 'WHERE st.workspace_id = ?';
 if ($q !== '') {
     $like = '%' . addcslashes($q, '%_\\') . '%';
-    $where = "WHERE st.lrn LIKE ? OR st.last_name LIKE ? OR st.first_name LIKE ? OR CONCAT(st.first_name, ' ', st.last_name) LIKE ?";
+    $where .= " AND (st.lrn LIKE ? OR st.last_name LIKE ? OR st.first_name LIKE ? OR CONCAT(st.first_name, ' ', st.last_name) LIKE ?)";
     array_push($params, $like, $like, $like, $like);
 }
 $limit = 100;

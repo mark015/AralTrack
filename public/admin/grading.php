@@ -22,7 +22,7 @@ if (is_post()) {
         Access::log('grades', 'Saved the grading deadlines for S.Y. ' . $sy['label'], 'school_year', (int) $sy['id']);
         flash('success', 'Deadlines saved. Each quarter locks the day after its deadline.');
     } elseif (in_array(post('action'), ['approve', 'reject'], true)) {
-        $request = db_one("SELECT * FROM grade_change_requests WHERE id = ? AND status = 'pending'", [post_int('id')]);
+        $request = db_one("SELECT * FROM grade_change_requests WHERE id = ? AND status = 'pending' AND workspace_id = ?", [post_int('id'), ws()]);
         $note = mb_substr(post('note'), 0, 500);
         if (!$request) {
             flash('warning', 'That request was already reviewed.');
@@ -52,8 +52,8 @@ $requestSql = 'SELECT r.*, st.last_name, st.first_name, st.middle_name, sub.name
                  JOIN sections sec         ON sec.id = ca.section_id
                  LEFT JOIN users u         ON u.id = r.requested_by
                  LEFT JOIN users rv        ON rv.id = r.reviewed_by';
-$pending = db_all($requestSql . " WHERE r.status = 'pending' ORDER BY r.id");
-$recent = db_all($requestSql . " WHERE r.status <> 'pending' ORDER BY r.reviewed_at DESC LIMIT 15");
+$pending = db_all($requestSql . " WHERE r.status = 'pending' AND r.workspace_id = ? ORDER BY r.id", [ws()]);
+$recent = db_all($requestSql . " WHERE r.status <> 'pending' AND r.workspace_id = ? ORDER BY r.reviewed_at DESC LIMIT 15", [ws()]);
 
 $title = 'Grading periods';
 require APP_ROOT . '/templates/header.php';

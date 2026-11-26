@@ -133,11 +133,11 @@ final class StudentImporter
 
         $pdo = db();
         $upsert = $pdo->prepare(
-            'INSERT INTO students (lrn, last_name, first_name, middle_name, sex, birthdate, qr_token, parent_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            'INSERT INTO students (workspace_id, lrn, last_name, first_name, middle_name, sex, birthdate, qr_token, parent_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE last_name = VALUES(last_name), first_name = VALUES(first_name),
                  middle_name = VALUES(middle_name), sex = COALESCE(VALUES(sex), sex), birthdate = VALUES(birthdate)'
         );
-        $findId = $pdo->prepare('SELECT id FROM students WHERE lrn = ?');
+        $findId = $pdo->prepare('SELECT id FROM students WHERE lrn = ? AND workspace_id = ?');
         $enroll = $pdo->prepare(
             'INSERT INTO enrollments (student_id, section_id, school_year_id) VALUES (?, ?, ?)
              ON DUPLICATE KEY UPDATE section_id = VALUES(section_id)'
@@ -147,7 +147,7 @@ final class StudentImporter
         try {
             foreach ($records as $r) {
                 // New learners get a QR card code and a parent link code; existing ones keep theirs.
-                $upsert->execute([$r['lrn'], $r['last'], $r['first'], $r['middle'] ?: null, $r['sex'], $r['birthdate'], new_qr_token(), new_parent_code()]);
+                $upsert->execute([ws(), $r['lrn'], $r['last'], $r['first'], $r['middle'] ?: null, $r['sex'], $r['birthdate'], new_qr_token(), new_parent_code()]);
                 // MariaDB reports 1 for a new row, 2 for an updated row, 0 when nothing changed.
                 match ($upsert->rowCount()) {
                     1 => $result['created']++,
@@ -155,7 +155,7 @@ final class StudentImporter
                     default => $result['unchanged']++,
                 };
                 if ($r['sectionId'] !== null) {
-                    $findId->execute([$r['lrn']]);
+                    $findId->execute([$r['lrn'], ws()]);
                     $enroll->execute([(int) $findId->fetchColumn(), $r['sectionId'], $schoolYear['id']]);
                     $result['enrolled']++;
                 }

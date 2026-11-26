@@ -16,16 +16,22 @@ if (is_post()) {
 
     if ($login === null || $password === '') {
         $error = 'Enter your mobile number or email, and your password.';
-    } elseif (!Access::loginOpen('parent')) {
-        $error = Access::closedMessage('parent');
-        Access::logLogin('parent', null, $login, false, Access::maintenance() ? 'maintenance' : 'sign-in off');
     } elseif (RateLimiter::isLocked('parent', $login, $ip)) {
         $error = 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.';
         Access::logLogin('parent', null, $login, false, 'locked');
     } else {
         $parent = db_one('SELECT * FROM parents WHERE login = ?', [$login]);
         $ok = password_verify($password, $parent['password_hash'] ?? DUMMY_PASSWORD_HASH);
-        if ($parent && $ok && !$parent['is_active']) {
+        if ($parent && $ok) {
+            Workspace::switchTo((int) $parent['workspace_id']); // the parent's school: its sign-in switches and settings
+        }
+        if ($parent && $ok && Workspace::isSuspended()) {
+            $error = Workspace::suspendedMessage();
+            Access::logLogin('parent', (int) $parent['id'], $login, false, 'school paused');
+        } elseif ($parent && $ok && !Access::loginOpen('parent')) {
+            $error = Access::closedMessage('parent');
+            Access::logLogin('parent', (int) $parent['id'], $login, false, Access::maintenance() ? 'maintenance' : 'sign-in off');
+        } elseif ($parent && $ok && !$parent['is_active']) {
             $error = 'Your account was turned off by the school.' . ($parent['blocked_reason'] ? ' Reason: ' . $parent['blocked_reason'] . '.' : '') . ' Please contact the registrar.';
             Access::logLogin('parent', (int) $parent['id'], $login, false, 'turned off');
         } elseif ($parent && $ok) {

@@ -28,8 +28,8 @@ if (is_post()) {
         try {
             $file = Files::store($_FILES['file'] ?? null, 'excuse');
             db_exec(
-                'INSERT INTO excuse_letters (student_id, parent_id, date_from, date_to, reason, file_path, file_name, file_mime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [$form['student_id'], $parent['id'], $form['date_from'], $form['date_to'], mb_substr($form['reason'], 0, 1000), $file['path'] ?? null, $file['name'] ?? null, $file['mime'] ?? null]
+                'INSERT INTO excuse_letters (workspace_id, student_id, parent_id, date_from, date_to, reason, file_path, file_name, file_mime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [ws(), $form['student_id'], $parent['id'], $form['date_from'], $form['date_to'], mb_substr($form['reason'], 0, 1000), $file['path'] ?? null, $file['name'] ?? null, $file['mime'] ?? null]
             );
             flash('success', 'Excuse letter sent. The adviser will review it, and you will get a notification.');
             redirect('parent/excuses.php');

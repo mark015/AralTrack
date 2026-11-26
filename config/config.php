@@ -1,9 +1,9 @@
 <?php
-// Settings for the Student Grade Portal.
+// Settings for AralTrack (the school portal).
 // This folder is not reachable from the browser (see the .htaccess files).
 
 return [
-    'app_name'    => 'Student Grade Portal',
+    'app_name'    => 'AralTrack',
     'school_name' => 'Sample Senior High School',
     'base_url'    => '/student-portal',   // URL path of this folder under htdocs, no trailing slash
     'debug'       => false,               // true shows error details: only on your own computer (set it in config.local.php)

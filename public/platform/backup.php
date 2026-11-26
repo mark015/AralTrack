@@ -1,9 +1,10 @@
 <?php
-// Backups: download the database (.sql) or the uploaded files (.zip), keep copies on the server,
-// and restore the database from a backup. Restoring asks for the admin's password and saves a copy first.
+// Backups (platform owner only): download the database (.sql) or the uploaded files (.zip), keep copies on the
+// server, and restore the database from a backup. A backup holds every school's data, so schools can't open
+// this page. Restoring asks for the owner's password and saves a copy first.
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
-$staff = require_staff('admin');
+$owner = require_owner();
 $error = null;
 
 if (is_post()) {
@@ -11,7 +12,7 @@ if (is_post()) {
     set_time_limit(0);
 
     if ($action === 'download') {
-        Access::log('backup', 'Downloaded a database backup', null, null);
+        platform_log('backup', 'Downloaded a database backup');
         $name = 'portal-backup-' . date('Ymd-His') . '.sql';
         header('Content-Type: application/sql; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $name . '"');
@@ -25,15 +26,15 @@ if (is_post()) {
     }
     if ($action === 'save') {
         $name = Backup::saveCopy('manual');
-        Access::log('backup', "Saved a backup on the server ({$name})", null, null);
+        platform_log('backup', "Saved a backup on the server ({$name})");
         flash('success', "Backup saved on the server as {$name}.");
-        redirect('admin/backup.php');
+        redirect('platform/backup.php');
     }
     if ($action === 'get' || $action === 'delete') {
         $path = Backup::copyPath(post('name'));
         if (!$path) {
             flash('danger', 'That backup does not exist.');
-            redirect('admin/backup.php');
+            redirect('platform/backup.php');
         }
         if ($action === 'get') {
             header('Content-Type: application/sql; charset=utf-8');
@@ -43,12 +44,12 @@ if (is_post()) {
             exit;
         }
         unlink($path);
-        Access::log('backup', 'Deleted the backup copy ' . basename($path), null, null);
+        platform_log('backup', 'Deleted the backup copy ' . basename($path));
         flash('success', basename($path) . ' was deleted.');
-        redirect('admin/backup.php');
+        redirect('platform/backup.php');
     }
     if ($action === 'restore') {
-        $user = db_one('SELECT password_hash FROM users WHERE id = ?', [$staff['id']]);
+        $user = db_one('SELECT password_hash FROM platform_owners WHERE id = ?', [$owner['id']]);
         $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
         $fromServer = post('name') !== '' ? Backup::copyPath(post('name')) : null;
         $upload = $_FILES['file'] ?? null;
@@ -68,18 +69,18 @@ if (is_post()) {
                 fclose($check);
             }
             if (!str_starts_with($first, Backup::HEADER)) {
-                $error = 'This is not a backup made by the portal (Setup → Backup). Nothing was changed.';
+                $error = 'This is not a backup made by the portal (Platform console → Backups). Nothing was changed.';
             } else {
                 $safety = Backup::saveCopy('before-restore');
                 try {
                     $count = Backup::restore($source);
-                    Access::log('backup', 'Restored the database from ' . ($fromServer ? basename($fromServer) : 'an uploaded file') . " (safety copy: {$safety})", null, null);
+                    platform_log('backup', 'Restored the database from ' . ($fromServer ? basename($fromServer) : 'an uploaded file') . " (safety copy: {$safety})");
                     db_exec('DELETE FROM login_attempts');
                     flash('success', "Database restored ({$count} statements). A copy of the database from just before the restore was saved as {$safety}. If the backup came from an older version, run php database/migrate.php.");
                 } catch (UserFacingException $e) {
                     flash('danger', $e->getMessage());
                 }
-                redirect('admin/backup.php');
+                redirect('platform/backup.php');
             }
         }
     }
@@ -102,7 +103,7 @@ foreach (['excuses', 'materials', 'photos'] as $folder) {
 $size = static fn (int|float $bytes): string => $bytes >= 1048576 ? number_format($bytes / 1048576, 1) . ' MB' : number_format(max(1, $bytes / 1024)) . ' KB';
 $lastCopy = $copies[0]['time'] ?? null;
 
-$title = 'Backup';
+$title = 'Backups';
 require APP_ROOT . '/templates/header.php';
 ?>
 <div class="page-head">
@@ -125,11 +126,11 @@ require APP_ROOT . '/templates/header.php';
                         <h2 class="h6 mb-1">Database</h2>
                         <p class="small text-secondary">Learners, grades, attendance, accounts, messages and settings · <?= (int) $stats['tables'] ?> tables, about <?= e($size((int) $stats['bytes'])) ?>.</p>
                         <div class="d-flex flex-wrap gap-2">
-                            <form method="post" action="<?= e(url('admin/backup.php')) ?>" class="m-0">
+                            <form method="post" action="<?= e(url('platform/backup.php')) ?>" class="m-0">
                                 <?= csrf_field() ?><input type="hidden" name="action" value="download">
                                 <button class="btn btn-primary"><i class="bi bi-download me-1"></i>Download (.sql)</button>
                             </form>
-                            <form method="post" action="<?= e(url('admin/backup.php')) ?>" class="m-0">
+                            <form method="post" action="<?= e(url('platform/backup.php')) ?>" class="m-0">
                                 <?= csrf_field() ?><input type="hidden" name="action" value="save">
                                 <button class="btn btn-outline-primary"><i class="bi bi-hdd me-1"></i>Save a copy on the server</button>
                             </form>
@@ -147,7 +148,7 @@ require APP_ROOT . '/templates/header.php';
                     <div class="flex-grow-1">
                         <h2 class="h6 mb-1">Uploaded files</h2>
                         <p class="small text-secondary">Excuse letter attachments, class materials and learner photos · <?= $fileCount ?> files, <?= e($size($fileBytes)) ?>.</p>
-                        <form method="post" action="<?= e(url('admin/backup.php')) ?>" class="m-0">
+                        <form method="post" action="<?= e(url('platform/backup.php')) ?>" class="m-0">
                             <?= csrf_field() ?><input type="hidden" name="action" value="files">
                             <button class="btn btn-outline-primary" <?= $fileCount ? '' : 'disabled' ?>><i class="bi bi-download me-1"></i>Download (.zip)</button>
                         </form>
@@ -173,11 +174,11 @@ require APP_ROOT . '/templates/header.php';
                     <td class="small"><?= e(when_label(date('Y-m-d H:i:s', $c['time']))) ?></td>
                     <td class="small"><?= e($size($c['size'])) ?></td>
                     <td class="text-end text-nowrap">
-                        <form method="post" action="<?= e(url('admin/backup.php')) ?>" class="d-inline">
+                        <form method="post" action="<?= e(url('platform/backup.php')) ?>" class="d-inline">
                             <?= csrf_field() ?><input type="hidden" name="action" value="get"><input type="hidden" name="name" value="<?= e($c['name']) ?>">
                             <button class="btn btn-sm btn-outline-primary" aria-label="Download <?= e($c['name']) ?>"><i class="bi bi-download"></i></button>
                         </form>
-                        <form method="post" action="<?= e(url('admin/backup.php')) ?>" class="d-inline">
+                        <form method="post" action="<?= e(url('platform/backup.php')) ?>" class="d-inline">
                             <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="name" value="<?= e($c['name']) ?>">
                             <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this backup copy?')" aria-label="Delete <?= e($c['name']) ?>"><i class="bi bi-trash"></i></button>
                         </form>
@@ -197,7 +198,7 @@ require APP_ROOT . '/templates/header.php';
             A copy of the current database is saved on the server first. Uploaded files are not changed.
         </p>
         <?php if ($error): ?><div class="alert alert-danger"><i class="bi bi-x-octagon-fill"></i><div><?= e($error) ?></div></div><?php endif; ?>
-        <form method="post" action="<?= e(url('admin/backup.php')) ?>#restore" enctype="multipart/form-data" class="row g-3">
+        <form method="post" action="<?= e(url('platform/backup.php')) ?>#restore" enctype="multipart/form-data" class="row g-3">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="restore">
             <div class="col-md-6">

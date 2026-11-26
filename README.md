@@ -1,6 +1,7 @@
-# Student Grade Portal (Senior High School)
+# AralTrack: school portal for Senior High School
 
-A school portal for Grade 11 and 12 learners, their parents, subject teachers and school staff:
+A school portal for Grade 11 and 12 learners, their parents, subject teachers and school staff. One installation can
+serve **many schools** (each with its own separate data), run by a **platform owner**; see *Many schools* below.
 
 - **Subject teachers** keep a DepEd **class record** (Written Works, Performance Tasks, Quarterly Assessment), upload or type quarterly grades, take **class attendance by scanning learners' QR ID cards**, and post class materials.
 - **Parents** have their own accounts. They see each child's attendance in every class, the report card, school news and the calendar. They can send **excuse letters**, **message teachers** and **request documents**. **Notifications** appear inside the portal only (no email, no SMS).
@@ -86,7 +87,7 @@ Do these in order; the dashboard has a checklist.
    - *Year-end rollover*: create next year's school year and sections (copying subjects), then promote Grade 11 learners, retain those who failed, and mark Grade 12 learners as graduated.
    - *Reports*: see below.
 9. **News**: announcements for everyone, families or staff (parents are notified), and calendar events (holidays, exams, meetings, deadlines; a no-class day warns teachers taking attendance).
-10. **Setup → Backup**: see *Backups* below.
+10. Backups are made by the platform owner (they hold every school's data); see *Backups* below.
 
 ### Subject teacher
 
@@ -123,9 +124,9 @@ Do these in order; the dashboard has a checklist.
 
 ### Learner
 
-Sign in at the home page. The learner home shows today's classes and attendance, this month's totals, news and the calendar. **Report card** (one table per semester, like the SF9), **Schedule**, **Subjects** (materials from teachers and **My scores** per subject), and **Requests**.
+Sign in at **Learner sign-in** (`learner/login.php`, linked from the home page). The learner home shows today's classes and attendance, this month's totals, news and the calendar. **Report card** (one table per semester, like the SF9), **Schedule**, **Subjects** (materials from teachers and **My scores** per subject), and **Requests**.
 
-**How learners sign in** (Super Admin → Control panel): LRN only (default), LRN + birthdate, or LRN + password (each learner activates their account once with their birthdate; the registrar can reset it).
+**How learners sign in** (Super Admin → Control panel): LRN only (default), LRN + birthdate, or LRN + password (each learner activates their account once with their birthdate; the registrar can reset it). The sign-in page first asks for the LRN; the learner's school decides what else is asked.
 
 ## Offline attendance (no internet)
 
@@ -142,9 +143,31 @@ Teachers can take QR attendance without internet. Everything is sent to the serv
 - The portal can be **installed like an app** on phones and computers (Chrome or Edge: *Install app* in the footer, or the browser menu → *Install*). It opens full screen with the school crest. Only styles, scripts and icons are kept on the device; pages with grades or names always come from the server, and an offline page is shown without a connection. Installing needs `https://` (or `http://localhost` on the server itself).
 - **Dark mode**: the moon/sun button in the top bar. The choice is remembered on that device; by default it follows the device setting. Printing always uses light colours.
 
+## Many schools (platform console)
+
+The system can run many schools, and teachers on their own, from one installation and one database. Each is a
+**workspace**: every record is tagged with its school, every page and query only uses the signed-in person's school,
+and settings, sign-in switches, maintenance mode and the activity log are per school. The school that was there
+before became workspace 1.
+
+- **Home page** (`index.php`): what the system does, for schools and teachers looking at it, a **Request a demo**
+  form, and sign-in links for learners, parents and staff. Someone already signed in goes straight to their portal.
+- **Platform console** (`platform/login.php`), for the platform owner only, separate from every school account:
+  - **Schools**: every school and solo teacher with staff, learners, parents and the last sign-in. **Add a school**
+    creates the workspace and its first Super Admin with a temporary password.
+  - One school: details and plan, **Pause** (nobody in that school can sign in; nothing is deleted) and **Resume**,
+    **Reset password** of its admins, and **Open portal** to help them (the school's activity log records the visit,
+    and a banner shows it).
+  - **Demo requests** sent from the home page, and **Backups**.
+- **First owner account**: sign in as the Super Admin of the first school, then open `platform/login.php` and
+  create it (only possible once). With demo data: `owner` / `owner12345`.
+- Staff usernames and parent sign-in names are unique across all schools; LRNs, subject codes and school years only
+  inside one school. If the same LRN is in two schools, learner sign-in uses the school where the learner is
+  enrolled this school year.
+
 ## Backups
 
-**Setup → Backup** (admin only):
+**Platform console → Backups** (platform owner only, because a backup holds every school's data):
 - **Download** the database as a `.sql` file, or **save a copy on the server** (`storage/backups`). Download the uploaded files (excuse letters, materials, photos) as a `.zip`.
 - **Restore** the database from a backup file made by the portal. It replaces everything in the database, so it asks for your password and the word RESTORE, and saves a copy of the current database first.
 - Keep copies off the server (USB drive or cloud storage), at least weekly and before every year-end rollover. A backup from an older version is updated by running `php database/migrate.php` after restoring.
@@ -207,28 +230,30 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 ## Before using it for real
 
 - In `config/config.php`, set `debug` to `false`.
-- Run `php database/install.php` **without** `--seed` on a new database, and sign in as `admin` (the Super Admin) with the printed password. Fill in **Setup → Settings**, check the **Control panel**, and create a separate Admin account for the registrar.
+- Run `php database/install.php` **without** `--seed` on a new database, and sign in as `admin` (the Super Admin) with the printed password. Fill in **Setup → Settings**, check the **Control panel**, and create a separate Admin account for the registrar. Then create the platform owner account at `platform/login.php`.
 - **Parents at home** can only reach the portal if it is online. A XAMPP server on a school PC is only reachable on the school network. Put the portal on web hosting that supports PHP and MySQL (with HTTPS), or ask your IT person to make the school server reachable. Set the *Portal address for parents* setting; it is printed on parent link slips.
-- Set up regular backups (Setup → Backup).
+- Set up regular backups (Platform console → Backups).
 
 ## Folders
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–008), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–009), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
-                      Super Admin switches and logs (Access.php)
+                      Super Admin switches and logs (Access.php), the current school (Workspace.php)
 templates/            page header/footer and shared page parts
 storage/              uploaded files and server backups (not reachable from the browser)
 public/               the pages
-  index.php, grades.php       learner sign-in and report card
-  learner/                    learner home, schedule, subjects, scores, password
+  index.php                   public home page (the product, demo request form, sign-in links)
+  grades.php                  learner report card
+  learner/                    learner sign-in, home, schedule, subjects, scores, password
   staff/                      staff sign-in, password change
   teacher/                    classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
   parent/                     parent sign-up, sign-in, dashboard, child page, notifications, excuse letters
-  admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles, backup
+  admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles
   superadmin/                 control panel, accounts & sign-in, one person's access, activity log
+  platform/                   platform owner console: schools, demo requests, backups
   print/                      SF9, SF10, certificates
   messages.php, requests.php, news.php, privacy.php, file.php
   manifest.webmanifest, sw.js, offline.html   installable app

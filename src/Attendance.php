@@ -25,8 +25,8 @@ final class Attendance
         }
         $today = date('Y-m-d');
         db_exec(
-            'INSERT INTO class_sessions (class_assignment_id, session_date, starts_at, opened_by) VALUES (?, ?, ?, ?)',
-            [$class['id'], $today, "{$today} {$time}:00", $userId]
+            'INSERT INTO class_sessions (workspace_id, class_assignment_id, session_date, starts_at, opened_by) VALUES (?, ?, ?, ?, ?)',
+            [ws(), $class['id'], $today, "{$today} {$time}:00", $userId]
         );
         return (int) db()->lastInsertId();
     }
@@ -34,7 +34,7 @@ final class Attendance
     /** A session with its class details under 'class', or null. */
     public static function session(int $sessionId): ?array
     {
-        $session = db_one('SELECT * FROM class_sessions WHERE id = ?', [$sessionId]);
+        $session = db_one('SELECT * FROM class_sessions WHERE id = ? AND workspace_id = ?', [$sessionId, ws()]);
         $class = $session ? class_info((int) $session['class_assignment_id']) : null;
         return $class ? $session + ['class' => $class] : null;
     }
@@ -90,7 +90,7 @@ final class Attendance
             return ['kind' => 'error', 'accepted' => false, 'message' => 'Attendance for this class is already finished.'];
         }
         $token = token_from_scan($scanned);
-        $student = $token !== null ? db_one('SELECT * FROM students WHERE qr_token = ?', [$token]) : null;
+        $student = $token !== null ? db_one('SELECT * FROM students WHERE qr_token = ? AND workspace_id = ?', [$token, ws()]) : null;
         if (!$student) {
             $log('unknown');
             return ['kind' => 'error', 'accepted' => false, 'message' => 'Unknown QR code. It may be an old card that was replaced, or not a learner ID.'];
@@ -225,11 +225,14 @@ final class Attendance
     /** Finishes sessions from earlier days that the teacher left open. Runs on every page load (cheap). */
     public static function finishStaleSessions(): void
     {
-        $stale = db_all('SELECT id, session_date FROM class_sessions WHERE finished_at IS NULL AND session_date < ?', [date('Y-m-d')]);
+        $stale = db_all('SELECT id, workspace_id, session_date FROM class_sessions WHERE finished_at IS NULL AND session_date < ?', [date('Y-m-d')]);
         foreach ($stale as $row) {
-            if ($session = self::session((int) $row['id'])) {
-                self::finish($session, null, $row['session_date'] . ' 23:59:59');
-            }
+            // Each school's session is finished inside that school (its settings and parent notices)
+            Workspace::within((int) $row['workspace_id'], static function () use ($row): void {
+                if ($session = self::session((int) $row['id'])) {
+                    self::finish($session, null, $row['session_date'] . ' 23:59:59');
+                }
+            });
         }
     }
 
@@ -312,7 +315,8 @@ final class Attendance
             }
             return $session;
         }
-        if ($id = db_value('SELECT id FROM class_sessions WHERE client_uuid = ?', [$clientUuid])) {
+        $id = db_value('SELECT id FROM class_sessions WHERE client_uuid = ? AND class_assignment_id = ? AND workspace_id = ?', [$clientUuid, $class['id'], ws()]);
+        if ($id) {
             return self::session((int) $id);
         }
         $open = db_one(
@@ -324,8 +328,8 @@ final class Attendance
             return self::session((int) $open['id']);
         }
         db_exec(
-            'INSERT INTO class_sessions (class_assignment_id, session_date, starts_at, opened_by, client_uuid) VALUES (?, ?, ?, ?, ?)',
-            [$class['id'], $date, "{$date} {$time}", $userId, $clientUuid]
+            'INSERT INTO class_sessions (workspace_id, class_assignment_id, session_date, starts_at, opened_by, client_uuid) VALUES (?, ?, ?, ?, ?, ?)',
+            [ws(), $class['id'], $date, "{$date} {$time}", $userId, $clientUuid]
         );
         return self::session((int) db()->lastInsertId());
     }

@@ -3,7 +3,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin', 'principal', 'guidance');
-$section = db_one('SELECT s.*, s.name AS section_name, sy.label AS sy_label FROM sections s JOIN school_years sy ON sy.id = s.school_year_id WHERE s.id = ?', [get_int('section')]);
+$section = db_one('SELECT s.*, s.name AS section_name, sy.label AS sy_label FROM sections s JOIN school_years sy ON sy.id = s.school_year_id WHERE s.id = ? AND s.workspace_id = ?', [get_int('section'), ws()]);
 if (!$section) {
     abort(404, 'That section does not exist.');
 }

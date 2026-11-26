@@ -7,13 +7,13 @@ $syId = $sy['id'] ?? 0;
 $today = date('Y-m-d');
 
 $counts = [
-    'subjects' => (int) db_value('SELECT COUNT(*) FROM subjects'),
-    'teachers' => (int) db_value('SELECT COUNT(*) FROM users WHERE is_active = 1'),
+    'subjects' => (int) db_value('SELECT COUNT(*) FROM subjects WHERE workspace_id = ?', [ws()]),
+    'teachers' => (int) db_value('SELECT COUNT(*) FROM users WHERE is_active = 1 AND workspace_id = ?', [ws()]),
     'sections' => (int) db_value('SELECT COUNT(*) FROM sections WHERE school_year_id = ?', [$syId]),
     'classes'  => (int) db_value('SELECT COUNT(*) FROM class_assignments ca JOIN sections s ON s.id = ca.section_id WHERE s.school_year_id = ?', [$syId]),
-    'learners' => (int) db_value('SELECT COUNT(*) FROM students'),
+    'learners' => (int) db_value('SELECT COUNT(*) FROM students WHERE workspace_id = ?', [ws()]),
     'enrolled' => (int) db_value('SELECT COUNT(*) FROM enrollments WHERE school_year_id = ?', [$syId]),
-    'parents'  => (int) db_value('SELECT COUNT(*) FROM parents WHERE is_active = 1'),
+    'parents'  => (int) db_value('SELECT COUNT(*) FROM parents WHERE is_active = 1 AND workspace_id = ?', [ws()]),
 ];
 
 $setup = [
@@ -43,13 +43,13 @@ $trend = array_slice(db_all(
 $todayMarks = array_fill_keys(array_keys(ATTENDANCE_STATUSES), 0);
 foreach (db_all(
     'SELECT sa.status, COUNT(*) AS n FROM session_attendance sa JOIN class_sessions cs ON cs.id = sa.session_id
-      WHERE cs.session_date = ? GROUP BY sa.status',
-    [$today]
+      WHERE cs.session_date = ? AND cs.workspace_id = ? GROUP BY sa.status',
+    [$today, ws()]
 ) as $row) {
     $todayMarks[$row['status']] = (int) $row['n'];
 }
-$todaySessions = (int) db_value('SELECT COUNT(*) FROM class_sessions WHERE session_date = ?', [$today]);
-$openSessions = (int) db_value('SELECT COUNT(*) FROM class_sessions WHERE session_date = ? AND finished_at IS NULL', [$today]);
+$todaySessions = (int) db_value('SELECT COUNT(*) FROM class_sessions WHERE session_date = ? AND workspace_id = ?', [$today, ws()]);
+$openSessions = (int) db_value('SELECT COUNT(*) FROM class_sessions WHERE session_date = ? AND finished_at IS NULL AND workspace_id = ?', [$today, ws()]);
 
 $uploads = db_all(
     'SELECT ul.*, u.full_name, sub.name AS subject_name, sec.grade_level, sec.strand, sec.name AS section_name
@@ -58,8 +58,10 @@ $uploads = db_all(
        JOIN class_assignments ca ON ca.id = ul.class_assignment_id
        JOIN subjects sub         ON sub.id = ca.subject_id
        JOIN sections sec         ON sec.id = ca.section_id
+      WHERE ca.workspace_id = ?
       ORDER BY ul.id DESC
-      LIMIT 8'
+      LIMIT 8',
+    [ws()]
 );
 
 $hour = (int) date('G');

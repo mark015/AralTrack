@@ -75,9 +75,9 @@ final class Messages
                JOIN enrollments e   ON e.student_id = st.id
                JOIN school_years sy ON sy.id = e.school_year_id AND sy.is_active = 1
                JOIN sections sec    ON sec.id = e.section_id
-              WHERE 1 = 1{$scope}
+              WHERE st.workspace_id = ?{$scope}
               ORDER BY sec.grade_level, sec.name, st.last_name, st.first_name, p.full_name",
-            $scope === '' ? [] : [$staff['id'], $staff['id']]
+            $scope === '' ? [ws()] : [ws(), $staff['id'], $staff['id']]
         );
     }
 
@@ -119,6 +119,6 @@ final class Messages
     public static function send(int $threadId, string $senderType, string $body): void
     {
         db_exec('INSERT INTO messages (thread_id, sender_type, body) VALUES (?, ?, ?)', [$threadId, $senderType, $body]);
-        db_exec('UPDATE message_threads SET last_message_at = ? WHERE id = ?', [date('Y-m-d H:i:s'), $threadId]);
+        db_exec('UPDATE message_threads SET last_message_at = ? WHERE id = ? AND workspace_id = ?', [date('Y-m-d H:i:s'), $threadId, ws()]);
     }
 }

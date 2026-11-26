@@ -4,14 +4,17 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin', 'principal', 'guidance');
-$years = db_all('SELECT * FROM school_years ORDER BY label DESC');
+$years = db_all('SELECT * FROM school_years WHERE workspace_id = ? ORDER BY label DESC', [ws()]);
 $syId = get_int('sy') ?: (int) (active_school_year()['id'] ?? 0);
+if (!in_array($syId, array_map('intval', array_column($years, 'id')), true)) {
+    $syId = (int) (active_school_year()['id'] ?? 0); // a school year of this school only
+}
 $period = in_array(get_str('period'), ['1', '2', 'year'], true) ? get_str('period') : '1';
 $level = get_int('grade');
 
 $sections = db_all(
-    'SELECT s.*, s.name AS section_name FROM sections s WHERE s.school_year_id = ?' . ($level ? ' AND s.grade_level = ' . $level : '') . ' ORDER BY s.grade_level, s.strand, s.name',
-    [$syId]
+    'SELECT s.*, s.name AS section_name FROM sections s WHERE s.school_year_id = ? AND s.workspace_id = ?' . ($level ? ' AND s.grade_level = ' . $level : '') . ' ORDER BY s.grade_level, s.strand, s.name',
+    [$syId, ws()]
 );
 $awards = ['With Highest Honors' => [], 'With High Honors' => [], 'With Honors' => []];
 foreach ($sections as $sec) {
@@ -37,7 +40,7 @@ unset($list);
 $quartersInPeriod = $period === 'year' ? QUARTERS_ALL : semester_quarters((int) $period);
 $provisional = array_filter($quartersInPeriod, static fn ($q) => !Grading::isLocked($syId, $q));
 $periodLabel = $period === 'year' ? 'Whole school year' : semester_label((int) $period);
-$sy = db_one('SELECT * FROM school_years WHERE id = ?', [$syId]);
+$sy = db_one('SELECT * FROM school_years WHERE id = ? AND workspace_id = ?', [$syId, ws()]);
 
 $title = 'Honor roll';
 require APP_ROOT . '/templates/header.php';

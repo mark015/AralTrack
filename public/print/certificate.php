@@ -7,7 +7,7 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 $staff = require_staff('admin', 'principal');
 $request = null;
 if ($requestId = get_int('request')) {
-    $request = db_one('SELECT * FROM document_requests WHERE id = ?', [$requestId]) ?? abort(404, 'That request does not exist.');
+    $request = db_one('SELECT * FROM document_requests WHERE id = ? AND workspace_id = ?', [$requestId, ws()]) ?? abort(404, 'That request does not exist.');
     $type = $request['doc_type'];
     $studentId = (int) $request['student_id'];
 } else {
@@ -17,7 +17,7 @@ if ($requestId = get_int('request')) {
 if (!in_array($type, ['enrollment', 'good_moral'], true)) {
     abort(404, 'Only certificates of enrollment and good moral character are printed here.');
 }
-$student = db_one('SELECT * FROM students WHERE id = ?', [$studentId]) ?? abort(404, 'That learner does not exist.');
+$student = db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [$studentId, ws()]) ?? abort(404, 'That learner does not exist.');
 $section = current_section_of($studentId);
 $last = $section ?: db_one(
     'SELECT sec.grade_level, sec.strand, sec.name AS section_name, sy.label AS sy_label

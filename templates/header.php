@@ -4,13 +4,18 @@
  * A page that lays out its own full-width sections (the landing page) sets $fullWidth = true.
  * @var string $title
  */
-$navStaff = current_staff();
-$navParent = $navStaff ? null : current_parent();
-$navStudentId = ($navStaff || $navParent) ? null : current_student_id();
-$navLearner = $navStudentId !== null ? db_one('SELECT first_name, last_name FROM students WHERE id = ?', [$navStudentId]) : null;
-$navItems = Navigation::items($navStaff, $navParent, $navLearner !== null);
-$navHome = $navStaff ? home_for($navStaff) : ($navParent ? 'parent/index.php' : ($navLearner ? 'learner/index.php' : 'index.php'));
 $navScript = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+// The platform owner's console (platform/) has its own menu, even when the owner also has a school open.
+$navOwner = str_contains($navScript, '/platform/') ? current_owner() : null;
+$navStaff = $navOwner ? null : current_staff();
+$navParent = ($navOwner || $navStaff) ? null : current_parent();
+$navStudentId = ($navOwner || $navStaff || $navParent) ? null : current_student_id();
+$navLearner = $navStudentId !== null ? db_one('SELECT first_name, last_name FROM students WHERE id = ? AND workspace_id = ?', [$navStudentId, ws()]) : null;
+$navItems = $navOwner ? Navigation::owner() : Navigation::items($navStaff, $navParent, $navLearner !== null);
+$navHome = $navOwner ? 'platform/index.php'
+    : ($navStaff ? home_for($navStaff) : ($navParent ? 'parent/index.php' : ($navLearner ? 'learner/index.php' : 'index.php')));
+$navSchool = !$navOwner && Workspace::known() ? setting('school_name') : null;
+$navActing = $navStaff && !empty($_SESSION['acting_owner']) && current_owner();
 $navIsActive = static function (array $item) use ($navScript, &$navIsActive): bool {
     if (isset($item['children'])) {
         foreach ($item['children'] as $child) {
@@ -31,6 +36,8 @@ $navBadge = static fn (array $item): string => !empty($item['badge'])
     ? ' <span class="badge rounded-pill text-bg-danger">' . (int) $item['badge'] . '</span>' : '';
 
 $navUser = match (true) {
+    $navOwner !== null => ['name' => $navOwner['full_name'], 'role' => 'Platform owner',
+        'password' => 'platform/password.php', 'logout' => 'platform/logout.php'],
     $navStaff !== null => ['name' => $navStaff['full_name'], 'role' => STAFF_ROLES[$navStaff['role']] ?? 'Staff',
         'password' => 'staff/password.php', 'logout' => 'staff/logout.php'],
     $navParent !== null => ['name' => $navParent['full_name'], 'role' => 'Parent / guardian',
@@ -60,7 +67,7 @@ $flashes = take_flashes();
         <link rel="manifest" href="<?= e(url('manifest.webmanifest')) ?>">
         <link rel="apple-touch-icon" href="<?= e(url('assets/icons/apple-touch-icon.png')) ?>">
         <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-title" content="Grade Portal">
+        <meta name="apple-mobile-web-app-title" content="<?= e(config('app_name')) ?>">
     <?php endif; ?>
     <script>
         // Apply the saved light/dark choice before the page paints (assets/theme.js handles the toggle).
@@ -83,7 +90,7 @@ $flashes = take_flashes();
             <?= brand_mark(38) ?>
             <span>
                 <span class="brand-title"><?= e(config('app_name')) ?></span>
-                <span class="brand-sub"><?= e(setting('school_name')) ?></span>
+                <span class="brand-sub"><?= e($navOwner ? 'Platform console' : ($navSchool ?? 'Grades · Attendance · Parents')) ?></span>
             </span>
         </a>
         <?php if ($navUser): ?>
@@ -148,7 +155,7 @@ $flashes = take_flashes();
             </div>
         <?php else: ?>
             <div class="d-flex align-items-center gap-1 gap-sm-2 ms-auto">
-                <a class="nav-public<?= str_ends_with($navScript, '/index.php') ? ' active' : '' ?>" href="<?= e(url('index.php')) ?>" title="Learners: check grades">
+                <a class="nav-public<?= str_ends_with($navScript, '/learner/login.php') ? ' active' : '' ?>" href="<?= e(url('learner/login.php')) ?>" title="Learners: check grades">
                     <i class="bi bi-mortarboard" aria-hidden="true"></i><span class="d-none d-md-inline">Learners</span>
                 </a>
                 <a class="nav-public<?= str_contains($navScript, '/parent/') ? ' active' : '' ?>" href="<?= e(url('parent/login.php')) ?>" title="Parents and guardians">
@@ -164,7 +171,15 @@ $flashes = take_flashes();
         <?php endif; ?>
     </div>
 </nav>
-<?php if (class_exists('Access', false) && Access::maintenance()): ?>
+<?php if ($navActing): ?>
+    <div class="portal-notice owner-notice d-print-none" role="status">
+        <div class="container py-2"><i class="bi bi-eye me-1" aria-hidden="true"></i>
+            <strong>Platform owner view</strong> of <?= e((string) $navSchool) ?>, signed in as <?= e($navStaff['full_name']) ?>. Changes are saved under this account and the school's activity log shows the visit.
+            <a href="<?= e(url('platform/workspace.php?id=' . ws())) ?>">Back to the console</a>
+        </div>
+    </div>
+<?php endif; ?>
+<?php if (!$navOwner && class_exists('Access', false) && Access::maintenance()): ?>
     <div class="portal-notice d-print-none" role="status">
         <div class="container py-2"><i class="bi bi-cone-striped me-1" aria-hidden="true"></i>
             <?= ($navStaff['role'] ?? '') === 'superadmin'

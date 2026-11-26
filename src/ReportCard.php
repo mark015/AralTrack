@@ -10,7 +10,7 @@ final class ReportCard
      */
     public static function build(int $studentId, int $requestedYearId = 0): ?array
     {
-        $student = db_one('SELECT * FROM students WHERE id = ?', [$studentId]);
+        $student = db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [$studentId, ws()]);
         if (!$student) {
             return null;
         }

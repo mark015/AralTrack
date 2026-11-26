@@ -10,8 +10,8 @@ $sy = active_school_year();
 
 if ($sectionId = get_int('section')) {
     $section = db_one(
-        'SELECT s.*, s.name AS section_name, sy.label AS sy_label FROM sections s JOIN school_years sy ON sy.id = s.school_year_id WHERE s.id = ?',
-        [$sectionId]
+        'SELECT s.*, s.name AS section_name, sy.label AS sy_label FROM sections s JOIN school_years sy ON sy.id = s.school_year_id WHERE s.id = ? AND s.workspace_id = ?',
+        [$sectionId, ws()]
     );
     if (!$section) {
         abort(404, 'That section does not exist.');
@@ -23,7 +23,7 @@ if ($sectionId = get_int('section')) {
     $heading = section_label($section);
     $back = 'admin/section.php?id=' . $sectionId;
 } elseif ($studentId = get_int('student')) {
-    $student = db_one('SELECT * FROM students WHERE id = ?', [$studentId]);
+    $student = db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [$studentId, ws()]);
     if (!$student) {
         abort(404, 'That learner does not exist.');
     }

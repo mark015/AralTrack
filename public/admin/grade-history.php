@@ -5,8 +5,8 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 $staff = require_staff('admin', 'principal');
 $q = get_str('q');
 $classId = get_int('class');
-$where = [];
-$params = [];
+$where = ['h.workspace_id = ?'];
+$params = [ws()];
 if ($classId) {
     $where[] = 'h.class_assignment_id = ?';
     $params[] = $classId;

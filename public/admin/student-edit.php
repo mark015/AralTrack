@@ -2,7 +2,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin');
-$student = db_one('SELECT * FROM students WHERE id = ?', [get_int('id')]);
+$student = db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [get_int('id'), ws()]);
 if (!$student) {
     abort(404, 'That learner does not exist.');
 }
@@ -28,19 +28,19 @@ $form = [
 $errors = [];
 
 if (is_post() && post('action') === 'reissue_qr') {
-    db_exec('UPDATE students SET qr_token = ? WHERE id = ?', [new_qr_token(), $studentId]);
+    db_exec('UPDATE students SET qr_token = ? WHERE id = ? AND workspace_id = ?', [new_qr_token(), $studentId, ws()]);
     Access::log('account', 'Reissued the QR card of ' . student_name($student), 'learner', $studentId);
     flash('success', 'A new QR card code was made. The old card no longer works. Print the new card below.');
     redirect($here);
 }
 if (is_post() && post('action') === 'new_parent_code') {
-    db_exec('UPDATE students SET parent_code = ? WHERE id = ?', [new_parent_code(), $studentId]);
+    db_exec('UPDATE students SET parent_code = ? WHERE id = ? AND workspace_id = ?', [new_parent_code(), $studentId, ws()]);
     Access::log('account', 'Made a new parent link code for ' . student_name($student), 'learner', $studentId);
     flash('success', 'A new parent link code was made. The old code no longer works; parents already linked stay linked.');
     redirect($here);
 }
 if (is_post() && post('action') === 'reset_password') {
-    db_exec('UPDATE students SET password_hash = NULL WHERE id = ?', [$studentId]);
+    db_exec('UPDATE students SET password_hash = NULL WHERE id = ? AND workspace_id = ?', [$studentId, ws()]);
     db_exec("DELETE FROM login_attempts WHERE scope = 'student' AND identifier = ?", [$student['lrn']]);
     Access::signOut('learner', $studentId);
     Access::log('account', 'Cleared the password of ' . student_name($student), 'learner', $studentId);
@@ -73,7 +73,7 @@ if (is_post() && post('action') === 'profile') {
             $values['photo_path'] = $photo['path'];
         }
         $sets = implode(', ', array_map(static fn ($k) => "{$k} = ?", array_keys($values)));
-        db_exec("UPDATE students SET {$sets} WHERE id = ?", [...array_values($values), $studentId]);
+        db_exec("UPDATE students SET {$sets} WHERE id = ? AND workspace_id = ?", [...array_values($values), $studentId, ws()]);
         flash('success', 'Profile saved.');
     } catch (UserFacingException $e) {
         flash('danger', $e->getMessage());
@@ -94,8 +94,8 @@ if (is_post() && in_array(post('action'), ['', 'save'], true)) {
         $pdo->beginTransaction();
         try {
             db_exec(
-                'UPDATE students SET lrn = ?, last_name = ?, first_name = ?, middle_name = ?, sex = ?, birthdate = ? WHERE id = ?',
-                [$data['lrn'], $data['last_name'], $data['first_name'], $data['middle_name'] ?: null, $data['sex'] ?: null, $data['birthdate'], $studentId]
+                'UPDATE students SET lrn = ?, last_name = ?, first_name = ?, middle_name = ?, sex = ?, birthdate = ? WHERE id = ? AND workspace_id = ?',
+                [$data['lrn'], $data['last_name'], $data['first_name'], $data['middle_name'] ?: null, $data['sex'] ?: null, $data['birthdate'], $studentId, ws()]
             );
             if ($sy && $sectionId !== $currentSection) {
                 if ($sectionId) {

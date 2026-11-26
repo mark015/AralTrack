@@ -49,8 +49,8 @@ if (is_post()) {
         $error = 'There are already ' . OPEN_REQUESTS_LIMIT . ' open requests for this learner. Wait for them to be ready first.';
     } else {
         db_exec(
-            'INSERT INTO document_requests (student_id, requested_by_type, requested_by_id, doc_type, purpose, copies) VALUES (?, ?, ?, ?, ?, ?)',
-            [$form['student_id'], $who, $requesterId, $form['doc_type'], $form['purpose'], $form['copies']]
+            'INSERT INTO document_requests (workspace_id, student_id, requested_by_type, requested_by_id, doc_type, purpose, copies) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [ws(), $form['student_id'], $who, $requesterId, $form['doc_type'], $form['purpose'], $form['copies']]
         );
         flash('success', 'Request sent to the registrar. ' . ($who === 'parent' ? 'You will get a notification when it is ready.' : 'Check this page for updates.'));
         redirect('requests.php');

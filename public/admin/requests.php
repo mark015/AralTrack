@@ -16,8 +16,8 @@ $here = 'admin/requests.php?status=' . $filter . ($search !== '' ? '&q=' . rawur
 
 if (is_post() && post('action') === 'update') {
     $request = db_one(
-        'SELECT r.*, st.first_name FROM document_requests r JOIN students st ON st.id = r.student_id WHERE r.id = ?',
-        [post_int('request_id')]
+        'SELECT r.*, st.first_name FROM document_requests r JOIN students st ON st.id = r.student_id WHERE r.id = ? AND r.workspace_id = ?',
+        [post_int('request_id'), ws()]
     );
     $status = post('status');
     $note = mb_substr(trim(post('admin_note')), 0, 500);
@@ -46,8 +46,8 @@ if (is_post() && post('action') === 'update') {
     redirect($here);
 }
 
-$where = REQUEST_FILTERS[$filter][1];
-$params = [];
+$where = REQUEST_FILTERS[$filter][1] . ' AND r.workspace_id = ?';
+$params = [ws()];
 if ($search !== '') {
     $where .= ' AND (st.lrn = ? OR CONCAT(st.first_name, \' \', st.last_name) LIKE ? OR st.last_name LIKE ?)';
     array_push($params, $search, '%' . $search . '%', $search . '%');
@@ -65,7 +65,7 @@ $requests = db_all(
     $params
 );
 $counts = [];
-foreach (db_all('SELECT status, COUNT(*) AS n FROM document_requests GROUP BY status') as $row) {
+foreach (db_all('SELECT status, COUNT(*) AS n FROM document_requests WHERE workspace_id = ? GROUP BY status', [ws()]) as $row) {
     $counts[$row['status']] = (int) $row['n'];
 }
 $countFor = static fn (string $key): int => match ($key) {

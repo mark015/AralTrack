@@ -2,7 +2,7 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin');
-$years = db_all('SELECT * FROM school_years ORDER BY label DESC');
+$years = db_all('SELECT * FROM school_years WHERE workspace_id = ? ORDER BY label DESC', [ws()]);
 $sy = null;
 foreach ($years as $year) {
     if ((int) $year['id'] === get_int('sy') || (!get_int('sy') && $year['is_active'])) {
@@ -17,7 +17,7 @@ $form = ['grade_level' => '', 'strand' => '', 'name' => '', 'adviser_id' => 0];
 
 if (is_post()) {
     if (post('action') === 'add') {
-        $year = db_one('SELECT * FROM school_years WHERE id = ?', [post_int('school_year_id')]);
+        $year = db_one('SELECT * FROM school_years WHERE id = ? AND workspace_id = ?', [post_int('school_year_id'), ws()]);
         $form = ['grade_level' => post('grade_level'), 'strand' => post('strand'), 'name' => post('name'), 'adviser_id' => post_int('adviser_id')];
         if (mb_strlen($form['strand']) > 50) {
             $errors[] = 'The strand can be up to 50 characters.';
@@ -37,8 +37,8 @@ if (is_post()) {
         if (!$errors) {
             try {
                 db_exec(
-                    'INSERT INTO sections (school_year_id, grade_level, strand, name, adviser_id) VALUES (?, ?, ?, ?, ?)',
-                    [$year['id'], (int) $form['grade_level'], $form['strand'], $form['name'], $form['adviser_id'] ?: null]
+                    'INSERT INTO sections (workspace_id, school_year_id, grade_level, strand, name, adviser_id) VALUES (?, ?, ?, ?, ?, ?)',
+                    [ws(), $year['id'], (int) $form['grade_level'], $form['strand'], $form['name'], $form['adviser_id'] ?: null]
                 );
                 $newId = (int) db()->lastInsertId();
                 flash('success', section_label($form + ['section_name' => $form['name']]) . ' created. Now add its subjects and learners.');
@@ -54,8 +54,8 @@ if (is_post()) {
         $section = db_one(
             'SELECT s.*, (SELECT COUNT(*) FROM enrollments e WHERE e.section_id = s.id) AS learners,
                     (SELECT COUNT(*) FROM class_assignments ca WHERE ca.section_id = s.id) AS classes
-               FROM sections s WHERE s.id = ?',
-            [post_int('id')]
+               FROM sections s WHERE s.id = ? AND s.workspace_id = ?',
+            [post_int('id'), ws()]
         );
         if ($section && !$section['learners'] && !$section['classes']) {
             db_exec('DELETE FROM sections WHERE id = ?', [$section['id']]);
@@ -73,9 +73,9 @@ $sections = $sy ? db_all(
             (SELECT COUNT(*) FROM class_assignments ca WHERE ca.section_id = s.id) AS classes
        FROM sections s
        LEFT JOIN users u ON u.id = s.adviser_id
-      WHERE s.school_year_id = ?
+      WHERE s.school_year_id = ? AND s.workspace_id = ?
       ORDER BY s.grade_level, s.strand, s.name',
-    [$sy['id']]
+    [$sy['id'], ws()]
 ) : [];
 
 $title = 'Sections';

@@ -8,7 +8,7 @@ $form = ['id' => 0, 'code' => '', 'name' => '', 'type' => 'core', 'sort_order' =
 $weightText = static fn ($v) => $v === null || $v === '' ? '' : format_grade($v);
 
 if ($editId = get_int('edit')) {
-    $editing = db_one('SELECT * FROM subjects WHERE id = ?', [$editId]);
+    $editing = db_one('SELECT * FROM subjects WHERE id = ? AND workspace_id = ?', [$editId, ws()]);
     if ($editing) {
         $form = ['id' => (int) $editing['id'], 'code' => $editing['code'], 'name' => $editing['name'], 'type' => $editing['type'], 'sort_order' => (string) $editing['sort_order'],
             'ww' => $weightText($editing['ww_weight']), 'pt' => $weightText($editing['pt_weight']), 'qa' => $weightText($editing['qa_weight'])];
@@ -45,10 +45,10 @@ if (is_post()) {
         if (!$errors) {
             try {
                 if ($form['id']) {
-                    db_exec('UPDATE subjects SET code = ?, name = ?, type = ?, sort_order = ?, ww_weight = ?, pt_weight = ?, qa_weight = ? WHERE id = ?', [$form['code'], $form['name'], $form['type'], (int) $form['sort_order'], ...$weights, $form['id']]);
+                    db_exec('UPDATE subjects SET code = ?, name = ?, type = ?, sort_order = ?, ww_weight = ?, pt_weight = ?, qa_weight = ? WHERE id = ? AND workspace_id = ?', [$form['code'], $form['name'], $form['type'], (int) $form['sort_order'], ...$weights, $form['id'], ws()]);
                     flash('success', "{$form['name']} updated.");
                 } else {
-                    db_exec('INSERT INTO subjects (code, name, type, sort_order, ww_weight, pt_weight, qa_weight) VALUES (?, ?, ?, ?, ?, ?, ?)', [$form['code'], $form['name'], $form['type'], (int) $form['sort_order'], ...$weights]);
+                    db_exec('INSERT INTO subjects (workspace_id, code, name, type, sort_order, ww_weight, pt_weight, qa_weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [ws(), $form['code'], $form['name'], $form['type'], (int) $form['sort_order'], ...$weights]);
                     flash('success', "{$form['name']} added.");
                 }
                 redirect('admin/subjects.php');
@@ -62,7 +62,7 @@ if (is_post()) {
         $editing = $form['id'] ? $form : null;
     } elseif (post('action') === 'delete') {
         try {
-            db_exec('DELETE FROM subjects WHERE id = ?', [post_int('id')]);
+            db_exec('DELETE FROM subjects WHERE id = ? AND workspace_id = ?', [post_int('id'), ws()]);
             flash('success', 'Subject deleted.');
         } catch (PDOException $e) {
             if (!is_foreign_key_error($e)) {
@@ -76,7 +76,8 @@ if (is_post()) {
 
 $subjects = db_all(
     'SELECT s.*, (SELECT COUNT(*) FROM class_assignments ca WHERE ca.subject_id = s.id) AS classes
-       FROM subjects s ORDER BY s.type = \'core\' DESC, s.sort_order, s.name'
+       FROM subjects s WHERE s.workspace_id = ? ORDER BY s.type = \'core\' DESC, s.sort_order, s.name',
+    [ws()]
 );
 
 $title = 'Subjects';

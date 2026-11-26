@@ -26,8 +26,8 @@ final class Forms
         return db_one(
             'SELECT s.*, s.name AS section_name, sy.label AS sy_label, u.full_name AS adviser
                FROM sections s JOIN school_years sy ON sy.id = s.school_year_id LEFT JOIN users u ON u.id = s.adviser_id
-              WHERE s.id = ?',
-            [$sectionId]
+              WHERE s.id = ? AND s.workspace_id = ?',
+            [$sectionId, ws()]
         );
     }
 

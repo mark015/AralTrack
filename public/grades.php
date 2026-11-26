@@ -12,7 +12,7 @@ if (!Access::can('grades')) {
 $card = ReportCard::build($studentId, get_int('sy'));
 if (!$card) {
     logout_student();
-    redirect('index.php');
+    redirect('learner/login.php');
 }
 
 $title = 'My grades';

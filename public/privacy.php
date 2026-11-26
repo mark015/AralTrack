@@ -2,7 +2,8 @@
 // Privacy notice (Data Privacy Act of 2012, RA 10173).
 require dirname(__DIR__) . '/src/bootstrap.php';
 
-$school = setting('school_name');
+// Before sign-in the school isn't known yet: each school using the system is responsible for its own learners' data.
+$school = Workspace::known() ? setting('school_name') : 'Your school';
 $contact = setting('dpo_contact') ?: 'the school\'s registrar or principal';
 $title = 'Privacy notice';
 require APP_ROOT . '/templates/header.php';
@@ -13,7 +14,7 @@ require APP_ROOT . '/templates/header.php';
             <div class="card-body p-4 p-md-5">
                 <div class="icon-bubble mb-3"><i class="bi bi-shield-lock"></i></div>
                 <h1 class="h3">Privacy notice</h1>
-                <p class="text-secondary"><?= e($school) ?> · Student Grade Portal</p>
+                <p class="text-secondary"><?= Workspace::known() ? e($school) . ' · ' : '' ?><?= e(config('app_name')) ?></p>
 
                 <p><?= e($school) ?> follows the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>.
                     This notice explains what this portal keeps about learners and their families, and why.</p>

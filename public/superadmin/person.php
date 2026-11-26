@@ -12,18 +12,18 @@ $tab = ['staff' => 'staff', 'parent' => 'parents', 'learner' => 'learners'][$typ
 $here = "superadmin/person.php?type={$type}&id={$id}";
 
 $person = match ($type) {
-    'staff' => db_one('SELECT id, username AS ident, LOWER(username) AS lock_key, full_name AS name, role, is_active, blocked_reason, last_login_at, last_login_device, last_login_ip FROM users WHERE id = ?', [$id]),
+    'staff' => db_one('SELECT id, username AS ident, LOWER(username) AS lock_key, full_name AS name, role, is_active, blocked_reason, last_login_at, last_login_device, last_login_ip FROM users WHERE id = ? AND workspace_id = ?', [$id, ws()]),
     'parent' => db_one(
         "SELECT p.id, p.login AS ident, p.login AS lock_key, p.full_name AS name, NULL AS role, p.is_active, p.blocked_reason, p.last_login_at, p.last_login_device, p.last_login_ip,
                 (SELECT GROUP_CONCAT(CONCAT(st.first_name, ' ', st.last_name) ORDER BY st.first_name SEPARATOR ', ') FROM parent_students ps JOIN students st ON st.id = ps.student_id WHERE ps.parent_id = p.id) AS detail
-           FROM parents p WHERE p.id = ?",
-        [$id]
+           FROM parents p WHERE p.id = ? AND p.workspace_id = ?",
+        [$id, ws()]
     ),
     default => db_one(
         "SELECT s.id, s.lrn AS ident, s.lrn AS lock_key, CONCAT(s.first_name, ' ', s.last_name) AS name, s.status AS role, 1 - s.login_blocked AS is_active, s.blocked_reason,
                 s.last_login_at, s.last_login_device, s.last_login_ip
-           FROM students s WHERE s.id = ?",
-        [$id]
+           FROM students s WHERE s.id = ? AND s.workspace_id = ?",
+        [$id, ws()]
     ),
 } ?? abort(404, 'That account does not exist.');
 $isSuper = $type === 'staff' && $person['role'] === 'superadmin';

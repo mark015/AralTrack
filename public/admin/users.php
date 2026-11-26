@@ -8,13 +8,13 @@ $isSuper = $staff['role'] === 'superadmin';
 $protectedRoles = ['admin', 'superadmin'];
 $assignable = $isSuper ? STAFF_ROLES : array_diff_key(STAFF_ROLES, array_flip($protectedRoles));
 $mayManage = static fn (array $user): bool => $isSuper || !in_array($user['role'], $protectedRoles, true);
-$activeSupers = static fn (): int => (int) db_value("SELECT COUNT(*) FROM users WHERE role = 'superadmin' AND is_active = 1");
+$activeSupers = static fn (): int => (int) db_value("SELECT COUNT(*) FROM users WHERE role = 'superadmin' AND is_active = 1 AND workspace_id = ?", [ws()]);
 $errors = [];
 $editing = null;
 $form = ['id' => 0, 'username' => '', 'full_name' => '', 'role' => 'teacher'];
 
 if ($editId = get_int('edit')) {
-    $editing = db_one('SELECT * FROM users WHERE id = ?', [$editId]);
+    $editing = db_one('SELECT * FROM users WHERE id = ? AND workspace_id = ?', [$editId, ws()]);
     if ($editing && (int) $editing['id'] !== $staff['id'] && !$mayManage($editing)) {
         abort(403, 'Only a Super Admin can change an Admin or Super Admin account.');
     }
@@ -33,7 +33,7 @@ if (is_post()) {
         if ($form['full_name'] === '' || mb_strlen($form['full_name']) > 150) {
             $errors[] = 'Enter the full name (up to 150 characters).';
         }
-        $before = $id ? db_one('SELECT * FROM users WHERE id = ?', [$id]) : null;
+        $before = $id ? db_one('SELECT * FROM users WHERE id = ? AND workspace_id = ?', [$id, ws()]) : null;
         if ($id && !$before) {
             $errors[] = 'That account does not exist.';
         } elseif ($before && (int) $before['id'] !== $staff['id'] && !$mayManage($before)) {
@@ -56,14 +56,14 @@ if (is_post()) {
         if (!$errors) {
             try {
                 if ($id) {
-                    db_exec('UPDATE users SET full_name = ?, role = ? WHERE id = ?', [$form['full_name'], $form['role'], $id]);
+                    db_exec('UPDATE users SET full_name = ?, role = ? WHERE id = ? AND workspace_id = ?', [$form['full_name'], $form['role'], $id, ws()]);
                     $roleNote = $before['role'] !== $form['role'] ? ' — role ' . (STAFF_ROLES[$before['role']] ?? $before['role']) . ' → ' . STAFF_ROLES[$form['role']] : '';
                     Access::log('account', "Updated the staff account of {$form['full_name']}{$roleNote}", 'staff', $id, ['role' => [$before['role'], $form['role']], 'full_name' => [$before['full_name'], $form['full_name']]]);
                     flash('success', "{$form['full_name']}'s account was updated.");
                 } else {
                     db_exec(
-                        'INSERT INTO users (username, password_hash, full_name, role, must_change_password) VALUES (?, ?, ?, ?, 1)',
-                        [$form['username'], password_hash($password, PASSWORD_DEFAULT), $form['full_name'], $form['role']]
+                        'INSERT INTO users (workspace_id, username, password_hash, full_name, role, must_change_password) VALUES (?, ?, ?, ?, ?, 1)',
+                        [ws(), $form['username'], password_hash($password, PASSWORD_DEFAULT), $form['full_name'], $form['role']]
                     );
                     Access::log('account', "Created the staff account {$form['username']} ({$form['full_name']}, " . STAFF_ROLES[$form['role']] . ')', 'staff', (int) db()->lastInsertId());
                     flash('success', "Account created. Give {$form['full_name']} the username \"{$form['username']}\" and the temporary password; they will be asked to change it.");
@@ -78,7 +78,7 @@ if (is_post()) {
         }
         $editing = $id ? $form : null;
     } elseif ($action === 'reset') {
-        $user = db_one('SELECT * FROM users WHERE id = ?', [post_int('id')]);
+        $user = db_one('SELECT * FROM users WHERE id = ? AND workspace_id = ?', [post_int('id'), ws()]);
         if ($user && !$mayManage($user)) {
             flash('danger', 'Only a Super Admin can reset the password of an Admin or Super Admin.');
         } elseif ($user && mb_strlen($password) >= 8) {
@@ -92,7 +92,7 @@ if (is_post()) {
         }
         redirect('admin/users.php?edit=' . post_int('id'));
     } elseif ($action === 'toggle') {
-        $user = db_one('SELECT * FROM users WHERE id = ?', [post_int('id')]);
+        $user = db_one('SELECT * FROM users WHERE id = ? AND workspace_id = ?', [post_int('id'), ws()]);
         if ($user && (int) $user['id'] === $staff['id']) {
             flash('danger', 'You cannot deactivate your own account.');
         } elseif ($user && !$mayManage($user)) {
@@ -112,7 +112,8 @@ $users = db_all(
     'SELECT u.*, (SELECT COUNT(*) FROM class_assignments ca JOIN sections s ON s.id = ca.section_id
                    JOIN school_years sy ON sy.id = s.school_year_id AND sy.is_active = 1
                   WHERE ca.teacher_id = u.id) AS classes
-       FROM users u ORDER BY u.is_active DESC, u.full_name'
+       FROM users u WHERE u.workspace_id = ? ORDER BY u.is_active DESC, u.full_name',
+    [ws()]
 );
 
 $title = 'Staff accounts';

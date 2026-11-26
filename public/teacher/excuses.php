@@ -17,8 +17,8 @@ $find = static function (int $id) use ($scope, $sy): ?array {
     return db_one(
         "SELECT el.*, st.first_name FROM excuse_letters el JOIN students st ON st.id = el.student_id
            JOIN enrollments e ON e.student_id = el.student_id AND e.school_year_id = ?
-          WHERE el.id = ? {$scope}",
-        [$sy['id'] ?? 0, $id]
+          WHERE el.id = ? AND el.workspace_id = ? {$scope}",
+        [$sy['id'] ?? 0, $id, ws()]
     );
 };
 
@@ -74,10 +74,10 @@ $letters = db_all(
        JOIN sections sec    ON sec.id = e.section_id
        LEFT JOIN parents p  ON p.id = el.parent_id
        LEFT JOIN users u    ON u.id = el.reviewed_by
-      WHERE 1 = 1 {$scope}
+      WHERE el.workspace_id = ? {$scope}
       ORDER BY el.status = 'pending' DESC, el.id DESC
       LIMIT 100",
-    [$sy['id'] ?? 0]
+    [$sy['id'] ?? 0, ws()]
 );
 
 $title = 'Excuse letters';

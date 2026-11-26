@@ -12,8 +12,8 @@ if (is_post() && post('action') === 'note') {
     $note = mb_substr(post('note'), 0, 1000);
     if ($note !== '' && staff_can_see_learner($staff, $studentId)) {
         db_exec(
-            'INSERT INTO interventions (student_id, class_assignment_id, note, created_by) VALUES (?, ?, ?, ?)',
-            [$studentId, post_int('class_id') ?: null, $note, $staff['id']]
+            'INSERT INTO interventions (workspace_id, student_id, class_assignment_id, note, created_by) VALUES (?, ?, ?, ?, ?)',
+            [ws(), $studentId, post_int('class_id') && class_info(post_int('class_id')) ? post_int('class_id') : null, $note, $staff['id']]
         );
         flash('success', 'Follow-up note saved.');
     }

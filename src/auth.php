@@ -19,6 +19,7 @@ function staff_session(array $user): array
         'username'  => $user['username'],
         'full_name' => $user['full_name'],
         'role'      => $user['role'],
+        'workspace_id' => (int) $user['workspace_id'],
     ];
 }
 
@@ -55,9 +56,13 @@ function home_for(array $staff): string
 function require_staff(string ...$roles): array
 {
     $id = $_SESSION['staff']['id'] ?? null;
-    $user = $id ? db_one('SELECT * FROM users WHERE id = ?', [$id]) : null;
+    $user = $id ? db_one('SELECT * FROM users WHERE id = ? AND workspace_id = ?', [$id, (int) ($_SESSION['workspace_id'] ?? 0)]) : null;
+    if ($user) {
+        Workspace::switchTo((int) $user['workspace_id']);
+    }
     $message = match (true) {
         !$user => 'Please sign in to continue.',
+        Workspace::isSuspended() && empty($_SESSION['acting_owner']) => Workspace::suspendedMessage(),
         !$user['is_active'] => 'Your account was turned off by the school.',
         Access::sessionRevoked('staff', $user) => 'You were signed out by the school. Please sign in again.',
         $user['role'] !== 'superadmin' && !Access::loginOpen('staff') => Access::closedMessage('staff'),
@@ -83,6 +88,7 @@ function require_staff(string ...$roles): array
 
 function login_staff(array $user): void
 {
+    Workspace::enter((int) $user['workspace_id']);
     session_regenerate_id(true);
     $_SESSION['staff'] = staff_session($user);
     Access::stampSession('staff', (int) ($user['session_version'] ?? 0));
@@ -90,7 +96,7 @@ function login_staff(array $user): void
 
 function logout_staff(): void
 {
-    unset($_SESSION['staff'], $_SESSION['grade_import']);
+    unset($_SESSION['staff'], $_SESSION['grade_import'], $_SESSION['acting_owner']);
     session_regenerate_id(true);
 }
 
@@ -108,9 +114,13 @@ function current_parent(): ?array
 function require_parent(): array
 {
     $id = $_SESSION['parent']['id'] ?? null;
-    $parent = $id ? db_one('SELECT * FROM parents WHERE id = ?', [$id]) : null;
+    $parent = $id ? db_one('SELECT * FROM parents WHERE id = ? AND workspace_id = ?', [$id, (int) ($_SESSION['workspace_id'] ?? 0)]) : null;
+    if ($parent) {
+        Workspace::switchTo((int) $parent['workspace_id']);
+    }
     $message = match (true) {
         !$parent => 'Please sign in to continue.',
+        Workspace::isSuspended() => Workspace::suspendedMessage(),
         !$parent['is_active'] => 'Your account was turned off by the school.',
         Access::sessionRevoked('parent', $parent) => 'You were signed out by the school. Please sign in again.',
         !Access::loginOpen('parent') => Access::closedMessage('parent'),
@@ -133,6 +143,7 @@ function require_parent(): array
 
 function login_parent(array $parent): void
 {
+    Workspace::enter((int) $parent['workspace_id']);
     session_regenerate_id(true);
     $_SESSION['parent'] = ['id' => (int) $parent['id'], 'full_name' => $parent['full_name']];
     Access::stampSession('parent', (int) ($parent['session_version'] ?? 0));
@@ -149,8 +160,8 @@ function parent_child_or_abort(array $parent, int $studentId): array
 {
     $child = $studentId > 0 ? db_one(
         'SELECT st.*, ps.relationship FROM parent_students ps JOIN students st ON st.id = ps.student_id
-          WHERE ps.parent_id = ? AND ps.student_id = ?',
-        [$parent['id'], $studentId]
+          WHERE ps.parent_id = ? AND ps.student_id = ? AND st.workspace_id = ?',
+        [$parent['id'], $studentId, ws()]
     ) : null;
     if (!$child) {
         abort(403, 'This learner is not linked to your account.');
@@ -164,9 +175,13 @@ function parent_child_or_abort(array $parent, int $studentId): array
 function require_student(): array
 {
     $id = current_student_id();
-    $student = $id !== null ? db_one('SELECT * FROM students WHERE id = ?', [$id]) : null;
+    $student = $id !== null ? db_one('SELECT * FROM students WHERE id = ? AND workspace_id = ?', [$id, (int) ($_SESSION['workspace_id'] ?? 0)]) : null;
+    if ($student) {
+        Workspace::switchTo((int) $student['workspace_id']);
+    }
     $message = match (true) {
         !$student => 'Please sign in to continue.',
+        Workspace::isSuspended() => Workspace::suspendedMessage(),
         (bool) ($student['login_blocked'] ?? false) => 'Your access to the portal was turned off by the school. Please talk to your adviser.',
         Access::sessionRevoked('learner', $student) => 'You were signed out by the school. Please sign in again.',
         !Access::loginOpen('learner') => Access::closedMessage('learner'),
@@ -175,7 +190,7 @@ function require_student(): array
     if ($message !== null) {
         logout_student();
         flash('warning', $message);
-        redirect('index.php');
+        redirect('learner/login.php');
     }
     return $student;
 }
@@ -201,13 +216,63 @@ function current_student_id(): ?int
 
 function login_student(int $studentId): void
 {
+    $student = db_one('SELECT workspace_id, session_version FROM students WHERE id = ?', [$studentId]);
+    Workspace::enter((int) $student['workspace_id']);
     session_regenerate_id(true);
     $_SESSION['student_id'] = $studentId;
-    Access::stampSession('learner', (int) db_value('SELECT session_version FROM students WHERE id = ?', [$studentId]));
+    Access::stampSession('learner', (int) $student['session_version']);
 }
 
 function logout_student(): void
 {
     unset($_SESSION['student_id']);
     session_regenerate_id(true);
+}
+
+// ---------------------------------------------------------------- platform owner (the company running the system)
+
+function current_owner(): ?array
+{
+    return $_SESSION['owner'] ?? null;
+}
+
+/** Stops unless the platform owner is signed in. Re-reads the account, so turning it off or a new password ends other sessions. */
+function require_owner(): array
+{
+    $id = $_SESSION['owner']['id'] ?? null;
+    $owner = $id ? db_one('SELECT * FROM platform_owners WHERE id = ?', [$id]) : null;
+    if (!$owner || !$owner['is_active'] || (int) $owner['session_version'] !== (int) ($_SESSION['owner']['version'] ?? -1)) {
+        unset($_SESSION['owner']);
+        flash('warning', 'Please sign in to continue.');
+        redirect('platform/login.php');
+    }
+    return $_SESSION['owner'];
+}
+
+function login_owner(array $owner): void
+{
+    session_regenerate_id(true);
+    $_SESSION['owner'] = [
+        'id'        => (int) $owner['id'],
+        'username'  => $owner['username'],
+        'full_name' => $owner['full_name'],
+        'version'   => (int) $owner['session_version'],
+    ];
+    db_exec('UPDATE platform_owners SET last_login_at = ? WHERE id = ?', [date('Y-m-d H:i:s'), $owner['id']]);
+}
+
+function logout_owner(): void
+{
+    unset($_SESSION['owner']);
+    session_regenerate_id(true);
+}
+
+/** Records what the platform owner did (adding or pausing a school, opening a school's portal, ...). */
+function platform_log(string $action, string $summary, ?int $workspaceId = null): void
+{
+    $owner = current_owner();
+    db_exec(
+        'INSERT INTO platform_log (owner_id, owner_name, workspace_id, action, summary, ip) VALUES (?, ?, ?, ?, ?, ?)',
+        [$owner['id'] ?? null, $owner ? $owner['full_name'] . ' (' . $owner['username'] . ')' : 'System', $workspaceId, $action, mb_substr($summary, 0, 500), client_ip()]
+    );
 }

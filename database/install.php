@@ -93,7 +93,7 @@ if ($seed) {
     echo DEMO_SUMMARY, "\n";
 } else {
     $password = bin2hex(random_bytes(6));
-    $pdo->prepare('INSERT INTO users (username, password_hash, full_name, role, must_change_password) VALUES (?, ?, ?, ?, 1)')
+    $pdo->prepare('INSERT INTO users (workspace_id, username, password_hash, full_name, role, must_change_password) VALUES (1, ?, ?, ?, ?, 1)')
         ->execute(['admin', password_hash($password, PASSWORD_DEFAULT), 'Administrator', 'superadmin']);
     echo "\nSuper Admin account (you will be asked to change the password at first sign-in):\n";
     echo "  username: admin\n  password: {$password}\n";

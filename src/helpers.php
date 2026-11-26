@@ -66,6 +66,8 @@ function setting(string $key): mixed
         return $values[$key];
     }
     return match ($key) {
+        // The school's name is its workspace name; pages before sign-in show the system's name
+        'school_name' => Workspace::known() ? Workspace::name() : config('app_name'),
         'learner_login' => config('require_birthdate') ? 'lrn_birthdate' : 'lrn',
         'at_risk_absences' => 3,
         'current_semester' => 1,
@@ -73,30 +75,43 @@ function setting(string $key): mixed
     };
 }
 
-/** @return array<string, string> */
+/**
+ * The current workspace's settings. Before anyone is signed in there is no school yet, so every setting
+ * falls back to its default.
+ *
+ * @return array<string, string>
+ */
 function settings_cache(?array $replace = null): array
 {
-    static $values = null;
-    if ($replace !== null) {
-        $values = $replace;
+    static $byWorkspace = [];
+    if (!Workspace::known()) {
+        return [];
     }
-    if ($values === null) {
+    $id = Workspace::id();
+    if ($replace !== null) {
+        $byWorkspace[$id] = $replace;
+    }
+    if (!isset($byWorkspace[$id])) {
         $values = [];
         try {
-            foreach (db_all('SELECT name, value FROM settings') as $row) {
+            foreach (db_all('SELECT name, value FROM settings WHERE workspace_id = ?', [$id]) as $row) {
                 $values[$row['name']] = (string) $row['value'];
             }
         } catch (Throwable) {
             // settings table not created yet
         }
+        $byWorkspace[$id] = $values;
     }
-    return $values;
+    return $byWorkspace[$id];
 }
 
 function save_settings(array $pairs): void
 {
     foreach ($pairs as $name => $value) {
-        db_exec('INSERT INTO settings (name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)', [$name, (string) $value]);
+        db_exec(
+            'INSERT INTO settings (workspace_id, name, value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
+            [ws(), $name, (string) $value]
+        );
     }
     settings_cache(array_merge(settings_cache(), array_map('strval', $pairs)));
 }
@@ -204,6 +219,10 @@ function start_session(): void
     }
     if (isset($_SESSION['parent']) && $idle > (int) config('parent_idle_minutes') * 60) {
         unset($_SESSION['parent']);
+        $expired = true;
+    }
+    if (isset($_SESSION['owner']) && $idle > (int) config('staff_idle_minutes') * 60) {
+        unset($_SESSION['owner']);
         $expired = true;
     }
     if ($expired) {

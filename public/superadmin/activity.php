@@ -30,8 +30,8 @@ $to = valid_ymd(get_str('to')) ? get_str('to') : '';
 $page = max(1, get_int('page'));
 $export = get_int('export') === 1;
 
-$where = ['1 = 1'];
-$params = [];
+$where = ['x.workspace_id = ?']; // this school's sign-ins and changes only
+$params = [ws()];
 if ($from !== '') {
     $where[] = 'x.created_at >= ?';
     $params[] = $from . ' 00:00:00';

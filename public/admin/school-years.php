@@ -11,9 +11,9 @@ if (is_post()) {
         if (!preg_match('/^(\d{4})-(\d{4})$/', $label, $m) || (int) $m[2] !== (int) $m[1] + 1) {
             $errors[] = 'Write the school year like 2026-2027.';
         } else {
-            $hasActive = (int) db_value('SELECT COUNT(*) FROM school_years WHERE is_active = 1') > 0;
+            $hasActive = (int) db_value('SELECT COUNT(*) FROM school_years WHERE is_active = 1 AND workspace_id = ?', [ws()]) > 0;
             try {
-                db_exec('INSERT INTO school_years (label, is_active) VALUES (?, ?)', [$label, $hasActive ? 0 : 1]);
+                db_exec('INSERT INTO school_years (workspace_id, label, is_active) VALUES (?, ?, ?)', [ws(), $label, $hasActive ? 0 : 1]);
                 flash('success', "S.Y. {$label} added." . ($hasActive ? '' : ' It is now the active school year.'));
                 redirect('admin/school-years.php');
             } catch (PDOException $e) {
@@ -24,9 +24,9 @@ if (is_post()) {
             }
         }
     } elseif (post('action') === 'activate') {
-        $year = db_one('SELECT * FROM school_years WHERE id = ?', [post_int('id')]);
+        $year = db_one('SELECT * FROM school_years WHERE id = ? AND workspace_id = ?', [post_int('id'), ws()]);
         if ($year) {
-            db_exec('UPDATE school_years SET is_active = (id = ?)', [$year['id']]);
+            db_exec('UPDATE school_years SET is_active = (id = ?) WHERE workspace_id = ?', [$year['id'], ws()]);
             flash('success', "S.Y. {$year['label']} is now the active school year. Teachers see its classes.");
         }
         redirect('admin/school-years.php');
@@ -38,7 +38,9 @@ $years = db_all(
             (SELECT COUNT(*) FROM sections s WHERE s.school_year_id = sy.id) AS sections,
             (SELECT COUNT(*) FROM enrollments e WHERE e.school_year_id = sy.id) AS learners
        FROM school_years sy
-      ORDER BY sy.label DESC'
+      WHERE sy.workspace_id = ?
+      ORDER BY sy.label DESC',
+    [ws()]
 );
 
 $title = 'School years';

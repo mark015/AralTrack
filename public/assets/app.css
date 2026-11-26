@@ -735,3 +735,65 @@ main.container { padding-top: 1.75rem !important; padding-bottom: 3rem !importan
 .net-pill.online::before, .net-pill.offline::before { content: ""; display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; margin-right: .4rem; }
 .net-pill.online::before { background: #36d399; }
 .net-pill.offline::before { background: #f5b82e; }
+
+/* ---------- public home page: the product for schools and teachers ---------- */
+
+.hero-proof { color: rgba(255, 255, 255, .74); }
+.hero-proof .bi { color: var(--sp-gold); margin-right: .2rem; }
+.mock-card {
+    background: var(--bs-body-bg); color: var(--sp-ink);
+    border-radius: 22px; padding: 1.25rem;
+    box-shadow: 0 34px 70px -24px rgba(3, 10, 36, .6);
+}
+.mock-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+.mock-title { font-weight: 700; color: var(--bs-emphasis-color); }
+.mock-sub { font-size: .8rem; color: var(--sp-muted); }
+.mock-live {
+    display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap;
+    font-size: .75rem; font-weight: 600; color: #0f7a54; background: #dcf5e9;
+    padding: .25rem .6rem; border-radius: 999px;
+}
+.mock-live .dot { width: .5rem; height: .5rem; border-radius: 50%; background: #12a26f; animation: mock-pulse 1.6s ease-in-out infinite; }
+@keyframes mock-pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .mock-live .dot { animation: none; } }
+.mock-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: .75rem; }
+.mock-counts div { background: var(--sp-page); border-radius: 12px; padding: .5rem .75rem; }
+.mock-counts strong { display: block; font-size: 1.25rem; color: var(--bs-emphasis-color); }
+.mock-counts span { font-size: .75rem; color: var(--sp-muted); }
+.mock-row { display: flex; align-items: center; gap: .65rem; padding: .55rem 0; border-top: 1px solid var(--sp-line); font-size: .9rem; }
+.mock-time { font-size: .75rem; color: var(--sp-muted); font-variant-numeric: tabular-nums; }
+.mock-badge { font-size: .72rem; font-weight: 600; padding: .2rem .55rem; border-radius: 999px; }
+.mock-badge.present { background: #dcf5e9; color: #0f7a54; }
+.mock-badge.late { background: var(--sp-gold-50); color: var(--sp-gold-700); }
+.mock-badge.absent { background: #fde4e8; color: #c22c45; }
+.mock-foot { margin-top: .75rem; font-size: .78rem; color: var(--sp-muted); background: var(--sp-blue-50); border-radius: 10px; padding: .5rem .75rem; }
+.chip-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin-top: -1.6rem; position: relative; z-index: 2; }
+.chip-strip span {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: var(--bs-body-bg); border: 1px solid var(--sp-line); border-radius: 999px;
+    padding: .45rem .9rem; font-size: .82rem; font-weight: 600; box-shadow: var(--sp-shadow);
+}
+.chip-strip .bi { color: #12a26f; }
+.landing-section { padding-top: 4rem; padding-bottom: 4rem; }
+.landing-head { max-width: 46rem; margin-bottom: 2rem; }
+.landing-section h2 { font-weight: 800; letter-spacing: -.025em; }
+.landing-band { background: var(--bs-body-bg); border-top: 1px solid var(--sp-line); border-bottom: 1px solid var(--sp-line); }
+.feature-card, .plan-card { border: 1px solid var(--sp-line); border-radius: var(--sp-radius); box-shadow: var(--sp-shadow); }
+.plan-card .card-body { padding: 1.75rem; }
+.check-list { list-style: none; padding: 0; margin: 0 0 1.25rem; }
+.check-list li { position: relative; padding-left: 1.6rem; margin-bottom: .55rem; }
+.check-list li::before { content: "\f272"; font-family: bootstrap-icons; position: absolute; left: 0; top: .05rem; color: #12a26f; }
+.step { height: 100%; padding: 1.5rem; background: var(--bs-body-bg); border: 1px solid var(--sp-line); border-radius: var(--sp-radius); }
+.step-num {
+    display: grid; place-items: center; width: 2.2rem; height: 2.2rem; margin-bottom: .85rem;
+    border-radius: 50%; background: var(--sp-navy-900); color: #fff; font-weight: 700;
+}
+.faq .accordion-button { font-weight: 600; }
+@media (max-width: 575.98px) {
+    .landing-section { padding-top: 2.75rem; padding-bottom: 2.75rem; }
+    .mock-card { padding: 1rem; }
+}
+
+/* The platform owner looking at a school's portal to help it */
+.owner-notice { background: #eee8ff; color: #3f1f99; border-bottom-color: #d9ccff; }
+[data-bs-theme="dark"] .owner-notice { background: rgba(124, 92, 255, .18); color: #d9ccff; border-bottom-color: rgba(124, 92, 255, .4); }

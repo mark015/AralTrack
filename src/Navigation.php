@@ -67,7 +67,6 @@ final class Navigation
             ['School years', 'calendar3', 'admin/school-years.php'],
             ['Staff accounts', 'person-badge', 'admin/users.php'],
             ['Settings', 'sliders', 'admin/settings.php'],
-            ['Backup', 'database-down', 'admin/backup.php'],
         ];
         $schoolMenu = [
             ['Dashboard', 'speedometer2', 'admin/index.php'],
@@ -126,6 +125,18 @@ final class Navigation
         };
     }
 
+    /** Menu of the platform owner's console (platform/). */
+    public static function owner(): array
+    {
+        $leads = self::count(static fn () => (int) db_value("SELECT COUNT(*) FROM platform_leads WHERE status = 'new'"));
+        return [
+            ['Schools', 'buildings', 'platform/index.php', 'also' => ['platform/workspace.php']],
+            ['Demo requests', 'inbox', 'platform/leads.php', 'badge' => $leads],
+            ['Backups', 'database-down', 'platform/backup.php'],
+            ['Home page', 'globe2', 'index.php'],
+        ];
+    }
+
     public static function pendingExcuses(array $staff): int
     {
         $scope = sees_all_learners($staff) ? '' : ' AND e.section_id IN (' . (implode(',', advised_section_ids($staff)) ?: '0') . ')';
@@ -133,7 +144,8 @@ final class Navigation
             "SELECT COUNT(*) FROM excuse_letters el
                JOIN enrollments e   ON e.student_id = el.student_id
                JOIN school_years sy ON sy.id = e.school_year_id AND sy.is_active = 1
-              WHERE el.status = 'pending'{$scope}"
+              WHERE el.status = 'pending' AND el.workspace_id = ?{$scope}",
+            [ws()]
         );
     }
 

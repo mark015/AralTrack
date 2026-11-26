@@ -21,7 +21,7 @@ final class ClassRecord
     /** @return array{ww: float, pt: float, qa: float} */
     public static function weights(int $subjectId): array
     {
-        $s = db_one('SELECT type, ww_weight, pt_weight, qa_weight FROM subjects WHERE id = ?', [$subjectId]);
+        $s = db_one('SELECT type, ww_weight, pt_weight, qa_weight FROM subjects WHERE id = ? AND workspace_id = ?', [$subjectId, ws()]);
         $default = self::DEFAULT_WEIGHTS[$s['type'] ?? 'core'] ?? self::DEFAULT_WEIGHTS['core'];
         if ($s && $s['ww_weight'] !== null && $s['pt_weight'] !== null && $s['qa_weight'] !== null) {
             return ['ww' => (float) $s['ww_weight'], 'pt' => (float) $s['pt_weight'], 'qa' => (float) $s['qa_weight']];
@@ -32,7 +32,7 @@ final class ClassRecord
     /** True when the subject uses its own weights instead of the DepEd default for its type. */
     public static function hasCustomWeights(int $subjectId): bool
     {
-        return (bool) db_value('SELECT ww_weight IS NOT NULL AND pt_weight IS NOT NULL AND qa_weight IS NOT NULL FROM subjects WHERE id = ?', [$subjectId]);
+        return (bool) db_value('SELECT ww_weight IS NOT NULL AND pt_weight IS NOT NULL AND qa_weight IS NOT NULL FROM subjects WHERE id = ? AND workspace_id = ?', [$subjectId, ws()]);
     }
 
     /**

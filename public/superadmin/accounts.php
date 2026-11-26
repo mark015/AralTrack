@@ -33,16 +33,16 @@ if (is_post()) {
 
     if ($action === 'turn_off_inactive_learners') {
         $n = db_exec("UPDATE students SET login_blocked = 1, blocked_reason = CONCAT('Learner status: ', REPLACE(status, '_', ' ')), session_version = session_version + 1
-                        WHERE status <> 'active' AND login_blocked = 0");
+                        WHERE status <> 'active' AND login_blocked = 0 AND workspace_id = ?", [ws()]);
         Access::log('account', "Turned off sign-in for {$n} graduated, transferred or dropped learner(s)", 'learner', null);
         flash('success', $n ? "Sign-in turned off for {$n} learner(s) who graduated, transferred out or dropped." : 'All of them were already turned off.');
         redirect($here);
     }
 
     $account = match ($type) {
-        'staff' => db_one('SELECT id, username AS ident, full_name AS name, role, is_active FROM users WHERE id = ?', [$id]),
-        'parent' => db_one('SELECT id, login AS ident, full_name AS name, is_active FROM parents WHERE id = ?', [$id]),
-        default => db_one("SELECT id, lrn AS ident, CONCAT(first_name, ' ', last_name) AS name, 1 - login_blocked AS is_active FROM students WHERE id = ?", [$id]),
+        'staff' => db_one('SELECT id, username AS ident, full_name AS name, role, is_active FROM users WHERE id = ? AND workspace_id = ?', [$id, ws()]),
+        'parent' => db_one('SELECT id, login AS ident, full_name AS name, is_active FROM parents WHERE id = ? AND workspace_id = ?', [$id, ws()]),
+        default => db_one("SELECT id, lrn AS ident, CONCAT(first_name, ' ', last_name) AS name, 1 - login_blocked AS is_active FROM students WHERE id = ? AND workspace_id = ?", [$id, ws()]),
     };
     if (!$account) {
         flash('danger', 'That account does not exist.');
@@ -51,7 +51,7 @@ if (is_post()) {
     $name = $account['name'];
     $back = post('return') === 'person' ? "superadmin/person.php?type={$type}&id={$id}" : $here;
     $isSelf = $type === 'staff' && (int) $account['id'] === $staff['id'];
-    $lastSuper = $type === 'staff' && $account['role'] === 'superadmin' && (int) db_value("SELECT COUNT(*) FROM users WHERE role = 'superadmin' AND is_active = 1") <= 1;
+    $lastSuper = $type === 'staff' && $account['role'] === 'superadmin' && (int) db_value("SELECT COUNT(*) FROM users WHERE role = 'superadmin' AND is_active = 1 AND workspace_id = ?", [ws()]) <= 1;
     $scope = ['staff' => 'staff', 'parent' => 'parent', 'learner' => 'student'][$type];
     $identifier = $type === 'staff' ? mb_strtolower($account['ident']) : $account['ident'];
 
@@ -62,9 +62,9 @@ if (is_post()) {
                 break;
             }
             match ($type) {
-                'staff' => db_exec('UPDATE users SET is_active = 0, blocked_reason = ? WHERE id = ?', [$reason ?: null, $id]),
-                'parent' => db_exec('UPDATE parents SET is_active = 0, blocked_reason = ? WHERE id = ?', [$reason ?: null, $id]),
-                default => db_exec('UPDATE students SET login_blocked = 1, blocked_reason = ? WHERE id = ?', [$reason ?: null, $id]),
+                'staff' => db_exec('UPDATE users SET is_active = 0, blocked_reason = ? WHERE id = ? AND workspace_id = ?', [$reason ?: null, $id, ws()]),
+                'parent' => db_exec('UPDATE parents SET is_active = 0, blocked_reason = ? WHERE id = ? AND workspace_id = ?', [$reason ?: null, $id, ws()]),
+                default => db_exec('UPDATE students SET login_blocked = 1, blocked_reason = ? WHERE id = ? AND workspace_id = ?', [$reason ?: null, $id, ws()]),
             };
             Access::signOut($type, $id);
             Access::log('account', "Turned off sign-in for {$name}" . ($reason ? " (reason: {$reason})" : ''), $type, $id);
@@ -73,9 +73,9 @@ if (is_post()) {
 
         case 'turn_on':
             match ($type) {
-                'staff' => db_exec('UPDATE users SET is_active = 1, blocked_reason = NULL WHERE id = ?', [$id]),
-                'parent' => db_exec('UPDATE parents SET is_active = 1, blocked_reason = NULL WHERE id = ?', [$id]),
-                default => db_exec('UPDATE students SET login_blocked = 0, blocked_reason = NULL WHERE id = ?', [$id]),
+                'staff' => db_exec('UPDATE users SET is_active = 1, blocked_reason = NULL WHERE id = ? AND workspace_id = ?', [$id, ws()]),
+                'parent' => db_exec('UPDATE parents SET is_active = 1, blocked_reason = NULL WHERE id = ? AND workspace_id = ?', [$id, ws()]),
+                default => db_exec('UPDATE students SET login_blocked = 0, blocked_reason = NULL WHERE id = ? AND workspace_id = ?', [$id, ws()]),
             };
             Access::log('account', "Turned on sign-in for {$name}", $type, $id);
             flash('success', "{$name} can sign in again.");
@@ -103,7 +103,7 @@ if (is_post()) {
                 break;
             }
             if ($type === 'learner') {
-                db_exec('UPDATE students SET password_hash = NULL WHERE id = ?', [$id]);
+                db_exec('UPDATE students SET password_hash = NULL WHERE id = ? AND workspace_id = ?', [$id, ws()]);
                 RateLimiter::clear($scope, $identifier);
                 Access::signOut($type, $id);
                 Access::log('account', "Cleared the password of {$name} (the learner activates the account again)", $type, $id);
@@ -112,8 +112,8 @@ if (is_post()) {
             }
             $temp = $tempPassword();
             db_exec(
-                'UPDATE ' . ($type === 'staff' ? 'users' : 'parents') . ' SET password_hash = ?, must_change_password = 1 WHERE id = ?',
-                [password_hash($temp, PASSWORD_DEFAULT), $id]
+                'UPDATE ' . ($type === 'staff' ? 'users' : 'parents') . ' SET password_hash = ?, must_change_password = 1 WHERE id = ? AND workspace_id = ?',
+                [password_hash($temp, PASSWORD_DEFAULT), $id, ws()]
             );
             RateLimiter::clear($scope, $identifier);
             Access::signOut($type, $id);
@@ -159,7 +159,7 @@ switch ($type) {
         break;
     default:
         $base = 'FROM students s
-                 LEFT JOIN enrollments e ON e.student_id = s.id AND e.school_year_id = (SELECT id FROM school_years WHERE is_active = 1 LIMIT 1)
+                 LEFT JOIN enrollments e ON e.student_id = s.id AND e.school_year_id = (SELECT id FROM school_years WHERE is_active = 1 AND workspace_id = s.workspace_id LIMIT 1)
                  LEFT JOIN sections sec ON sec.id = e.section_id';
         $select = "SELECT s.id, s.lrn AS ident, s.lrn AS lock_key, CONCAT(s.last_name, ', ', s.first_name) AS name, s.status AS role, 1 - s.login_blocked AS is_active,
                           s.blocked_reason, s.last_login_at, s.last_login_device, s.last_login_ip, 0 AS must_change_password,
@@ -182,6 +182,8 @@ $where[] = match ($status) {
     'never' => "{$lastCol} IS NULL",
     default => '1 = 1',
 };
+$where[] = (['staff' => 'u', 'parent' => 'p'][$type] ?? 's') . '.workspace_id = ?'; // this school's accounts only
+$params[] = ws();
 $whereSql = implode(' AND ', $where);
 $total = (int) db_value("SELECT COUNT(*) {$base} WHERE {$whereSql}", $params);
 $pages = max(1, (int) ceil($total / PER_PAGE));
@@ -198,11 +200,11 @@ if ($rows) {
 }
 
 $counts = [
-    'staff' => db_one('SELECT COUNT(*) AS n, SUM(is_active = 0) AS off FROM users'),
-    'parents' => db_one('SELECT COUNT(*) AS n, SUM(is_active = 0) AS off FROM parents'),
-    'learners' => db_one('SELECT COUNT(*) AS n, SUM(login_blocked = 1) AS off FROM students'),
+    'staff' => db_one('SELECT COUNT(*) AS n, SUM(is_active = 0) AS off FROM users WHERE workspace_id = ?', [ws()]),
+    'parents' => db_one('SELECT COUNT(*) AS n, SUM(is_active = 0) AS off FROM parents WHERE workspace_id = ?', [ws()]),
+    'learners' => db_one('SELECT COUNT(*) AS n, SUM(login_blocked = 1) AS off FROM students WHERE workspace_id = ?', [ws()]),
 ];
-$inactiveOpen = $type === 'learner' ? (int) db_value("SELECT COUNT(*) FROM students WHERE status <> 'active' AND login_blocked = 0") : 0;
+$inactiveOpen = $type === 'learner' ? (int) db_value("SELECT COUNT(*) FROM students WHERE status <> 'active' AND login_blocked = 0 AND workspace_id = ?", [ws()]) : 0;
 $groupOpen = Access::loginOpen($type);
 $editLink = static fn (array $r): string => match ($type) {
     'staff' => 'admin/users.php?edit=' . $r['id'],

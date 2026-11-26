@@ -7,6 +7,7 @@ define('APP_ROOT', dirname(__DIR__));
 require APP_ROOT . '/vendor/autoload.php';
 require __DIR__ . '/helpers.php';
 require __DIR__ . '/db.php';
+require __DIR__ . '/Workspace.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/queries.php';
 require __DIR__ . '/RateLimiter.php';
@@ -77,6 +78,9 @@ header('Cache-Control: no-store, max-age=0'); // shared lab computers: never cac
 
 require_current_schema();
 start_session();
+if (!isset($_SESSION['workspace_id']) && (isset($_SESSION['staff']) || isset($_SESSION['parent']) || isset($_SESSION['student_id']))) {
+    $_SESSION['workspace_id'] = 1; // signed in before workspaces existed: all those accounts are in the first school
+}
 
 if (is_post()) {
     verify_csrf();
