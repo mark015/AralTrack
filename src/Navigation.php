@@ -12,7 +12,7 @@ final class Navigation
     public static function items(?array $staff, ?array $parent, bool $learner): array
     {
         if ($staff) {
-            return self::filter(self::staff($staff));
+            return self::filter(Workspace::isSolo() ? self::solo($staff) : self::staff($staff));
         }
         if ($parent) {
             return self::filter([
@@ -35,6 +35,37 @@ final class Navigation
             ]);
         }
         return [];
+    }
+
+    /** A teacher who signed up alone: their classes, their learners and parents, and their own setup. */
+    private static function solo(array $staff): array
+    {
+        $excuses = self::count(static fn () => self::pendingExcuses($staff));
+        $messages = self::count(static fn () => Messages::unread('staff', $staff['id']));
+        $adviser = (bool) advised_section_ids($staff);
+        return [
+            ['My classes', 'easel2', 'teacher/index.php', 'also' => ['teacher/class.php', 'teacher/upload.php', 'teacher/attendance.php', 'teacher/session.php', 'teacher/posts.php', 'teacher/schedule-edit.php', 'teacher/class-record.php']],
+            ['My schedule', 'calendar-week', 'teacher/schedule.php'],
+            ['Learners', 'people', 'badge' => Access::can('excuses') ? $excuses : 0, 'children' => array_values(array_filter([
+                ['Learners', 'people', 'admin/students.php', 'also' => ['admin/student-edit.php', 'admin/profiles.php']],
+                ['Sections & QR cards', 'diagram-3', 'admin/sections.php', 'also' => ['admin/section.php', 'admin/timetable.php']],
+                ['Parents', 'person-hearts', 'admin/parents.php', 'also' => ['admin/parent-edit.php']],
+                $adviser ? ['My advisory', 'clipboard-heart', 'teacher/advisory.php', 'also' => ['teacher/values.php']] : null,
+                ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses, 'show' => Access::can('excuses')],
+                ['At-risk learners', 'exclamation-diamond', 'teacher/at-risk.php'],
+                ['DepEd forms', 'file-earmark-ruled', 'admin/forms.php'],
+            ]))],
+            ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages, 'show' => Access::can('messages')],
+            ['News', 'megaphone', 'admin/announcements.php', 'also' => ['news.php']],
+            ['Setup', 'gear', 'children' => [
+                ['Setup guide', 'signpost-split', 'teacher/setup.php'],
+                ['Subjects', 'journal-bookmark', 'admin/subjects.php'],
+                ['School years', 'calendar3', 'admin/school-years.php'],
+                ['Settings', 'sliders', 'admin/settings.php'],
+                ['Learner & parent sign-in', 'person-lock', 'superadmin/accounts.php'],
+                ['Control panel', 'toggles', 'superadmin/index.php'],
+            ]],
+        ];
     }
 
     private static function staff(array $staff): array

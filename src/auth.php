@@ -39,6 +39,10 @@ function is_admin(array $staff): bool
 
 function home_for(array $staff): string
 {
+    if (Workspace::known() && Workspace::isSolo()) {
+        // A teacher on their own: the setup guide until they finish it, then their classes
+        return TeacherSetup::done() ? 'teacher/index.php' : 'teacher/setup.php';
+    }
     return match ($staff['role']) {
         'superadmin' => is_file(APP_ROOT . '/public/superadmin/index.php') ? 'superadmin/index.php' : 'admin/index.php',
         'admin' => 'admin/index.php',

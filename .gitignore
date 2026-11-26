@@ -9,6 +9,7 @@
 /storage/materials/*
 /storage/photos/*
 /storage/backups/*
+/storage/mail/*
 !/storage/*/.gitkeep
 
 # Local and editor files

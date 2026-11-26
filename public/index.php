@@ -70,10 +70,11 @@ $faqs = [
     ['What does a school need to start?', 'An internet connection and the class lists. You add sections and subjects, import learners from an Excel file, print the QR ID cards, and teachers can start the same day.'],
     ['Can other schools see our data?', 'No. Every school has its own separate space. Staff, learners and parents only ever see their own school, and only what their role allows.'],
     ['Is it made for the Philippines?', 'Yes: LRN sign-in, two semesters with Q1–Q4, the DepEd grading weights and transmutation table, and the SF forms schools already use.'],
-    ['I\'m a teacher, not a whole school. Can I use it?', 'A plan for teachers on their own is coming: your own classes, QR attendance and class record, and you can bring your records along if your school joins later. Send a request below and we\'ll tell you when it opens.'],
+    ['I\'m a teacher, not a whole school. Can I use it?', 'Yes. Create a free teacher account with your email: add your classes, paste your class list, print the QR cards, and start. If your school joins later, your classes and records can move with you.'],
     ['How much does it cost?', 'It depends on the size of the school. Request a demo and we\'ll send you a quote. You can try it with your own school before paying.'],
 ];
 
+$signupOpen = Signup::open();
 $title = 'School portal for grades, QR attendance and parents';
 $fullWidth = true;
 require APP_ROOT . '/templates/header.php';
@@ -92,6 +93,9 @@ require APP_ROOT . '/templates/header.php';
                     <a class="btn btn-accent btn-lg" href="#start"><i class="bi bi-calendar-check me-1" aria-hidden="true"></i>Request a free demo</a>
                     <a class="btn btn-outline-light btn-lg" href="#signin">Sign in</a>
                 </div>
+                <?php if ($signupOpen): ?>
+                    <p class="hero-proof mb-2">Teacher? <a class="link-light fw-semibold" href="<?= e(url('signup.php')) ?>">Start free with your own classes <i class="bi bi-arrow-right" aria-hidden="true"></i></a></p>
+                <?php endif; ?>
                 <div class="hero-proof small"><i class="bi bi-check2-circle" aria-hidden="true"></i> Each school's data kept separate
                     <i class="bi bi-check2-circle ms-3" aria-hidden="true"></i> No app to install</div>
             </div>
@@ -154,7 +158,7 @@ require APP_ROOT . '/templates/header.php';
     <div class="container landing-section">
         <div class="landing-head">
             <span class="section-title">Who it's for</span>
-            <h2>For whole schools, and soon for teachers on their own</h2>
+            <h2>For whole schools, and for teachers on their own</h2>
         </div>
         <div class="row g-4">
             <div class="col-lg-6">
@@ -179,14 +183,18 @@ require APP_ROOT . '/templates/header.php';
                     <div class="card-body">
                         <div class="d-flex align-items-center gap-3 mb-3">
                             <div class="icon-bubble violet"><i class="bi bi-person-workspace" aria-hidden="true"></i></div>
-                            <div><h3 class="h5 mb-0">Teachers <span class="badge text-bg-warning align-middle">Coming soon</span></h3><div class="small text-secondary">For a teacher whose school isn't on <?= e(config('app_name')) ?> yet</div></div>
+                            <div><h3 class="h5 mb-0">Teachers<?= $signupOpen ? ' <span class="badge text-bg-success align-middle">Free</span>' : ' <span class="badge text-bg-warning align-middle">Coming soon</span>' ?></h3><div class="small text-secondary">For a teacher whose school isn't on <?= e(config('app_name')) ?> yet</div></div>
                         </div>
                         <ul class="check-list">
                             <li>Your own classes, QR attendance and class record</li>
                             <li>Parents of your learners get notices and can see your subject</li>
                             <li>If your school joins later, your classes and records move with you</li>
                         </ul>
-                        <a class="btn btn-outline-primary" href="#start">Tell me when it opens</a>
+                        <?php if ($signupOpen): ?>
+                            <a class="btn btn-primary" href="<?= e(url('signup.php')) ?>">Create a free teacher account</a>
+                        <?php else: ?>
+                            <a class="btn btn-outline-primary" href="#start">Tell me when it opens</a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

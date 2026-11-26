@@ -21,7 +21,8 @@ if (is_post()) {
         $error = 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.';
         Access::logLogin('staff', null, $username, false, 'locked');
     } else {
-        $user = db_one('SELECT * FROM users WHERE username = ?', [$username]);
+        // Sign in with the username, or with the email address (teachers who signed up use their email)
+        $user = db_one('SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1', [$username, mb_strtolower($username)]);
         $passwordOk = password_verify($password, $user['password_hash'] ?? DUMMY_PASSWORD_HASH);
         if ($user && $passwordOk) {
             Workspace::switchTo((int) $user['workspace_id']); // the account's school: its sign-in switches
@@ -29,6 +30,21 @@ if (is_post()) {
         if ($user && $passwordOk && Workspace::isSuspended()) {
             $error = Workspace::suspendedMessage();
             Access::logLogin('staff', (int) $user['id'], $username, false, 'school paused');
+        } elseif ($user && $passwordOk && $user['email'] !== null && $user['email_verified_at'] === null && $user['is_active']) {
+            // Signed up but the email address isn't confirmed yet: send a code first
+            RateLimiter::clear('staff', $key);
+            $_SESSION['verify_user'] = (int) $user['id'];
+            try {
+                $code = Signup::sendVerifyCode($user);
+                flash('info', 'Please confirm your email address first. We sent a new code to ' . $user['email'] . '.'
+                    . (Mailer::isTestMode() ? " (Test mode: emails aren't sent from this computer. The code is {$code}.)" : ''));
+            } catch (UserFacingException $e) {
+                flash('info', 'Please confirm your email address first, with the code we sent to ' . $user['email'] . '.');
+            } catch (RuntimeException $e) {
+                error_log('Sign-up code email failed: ' . $e->getMessage());
+                flash('warning', 'Please confirm your email address first. The email could not be sent just now; try "Send a new code" in a minute.');
+            }
+            redirect('staff/verify.php');
         } elseif ($user && $passwordOk && !$user['is_active']) {
             // Only after the right password, so the form can't be used to find out which accounts exist.
             $error = 'Your account was turned off by the school.' . ($user['blocked_reason'] ? ' Reason: ' . $user['blocked_reason'] . '.' : '') . ' Please contact the Super Admin.';
@@ -72,7 +88,7 @@ require APP_ROOT . '/templates/header.php';
                 <form method="post" action="<?= e(url('staff/login.php')) ?>">
                     <?= csrf_field() ?>
                     <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
+                        <label for="username" class="form-label">Username or email</label>
                         <input type="text" class="form-control" id="username" name="username" value="<?= e($username) ?>"
                                autocomplete="username" required autofocus>
                     </div>
@@ -83,9 +99,11 @@ require APP_ROOT . '/templates/header.php';
                     </div>
                     <button class="btn btn-primary w-100">Sign in</button>
                 </form>
+                <p class="small text-secondary mt-3 mb-0"><a href="<?= e(url('staff/forgot.php')) ?>">Forgot your password?</a></p>
             </div>
         </div>
         <p class="text-center small text-secondary mt-3">
+            <?php if (Signup::open()): ?>Teacher without an account? <a href="<?= e(url('signup.php')) ?>">Create one free</a>.<br><?php endif; ?>
             Learners: <a href="<?= e(url('learner/login.php')) ?>">check your grades here</a>.
         </p>
     </div>

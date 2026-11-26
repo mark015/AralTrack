@@ -22,4 +22,18 @@ return [
         'user' => 'u123456789_araltrack',
         'pass' => 'the database password',
     ],
+
+    // For teacher sign-up and "forgot password" emails: the site's address and a mailbox to send from.
+    // Hostinger: hPanel → Emails → create e.g. no-reply@yourdomain.com, then use its address and password here.
+    'app_url' => 'https://yourdomain.com',
+    'mail' => [
+        'transport'  => 'smtp',
+        'from'       => 'no-reply@yourdomain.com',
+        'from_name'  => 'AralTrack',
+        'host'       => 'smtp.hostinger.com',
+        'port'       => 465,
+        'encryption' => 'ssl',
+        'username'   => 'no-reply@yourdomain.com',
+        'password'   => 'the mailbox password',
+    ],
 ];

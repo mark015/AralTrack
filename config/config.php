@@ -14,6 +14,28 @@ return [
     // "php database/migrate.php" yourself after each update.
     'auto_migrate' => true,
 
+    // Teachers can create their own account at signup.php (a workspace of their own). Needs 'app_url' and
+    // 'mail' below so the sign-up code and password-reset emails can be sent.
+    'teacher_signup' => true,
+
+    // The site's full address, used in links inside emails, e.g. 'https://mjtechcore.com'. Set it in config.local.php.
+    'app_url' => '',
+
+    // Sending email (sign-up codes, password resets). Set it in config.local.php.
+    //   'log'  : nothing is sent; each email is saved in storage/mail/ (testing on your own computer, with debug on)
+    //   'smtp' : sends through a mailbox, e.g. a Hostinger email account (smtp.hostinger.com, port 465, 'ssl')
+    //   'mail' : PHP's mail() function
+    'mail' => [
+        'transport'  => 'log',
+        'from'       => '',          // e.g. 'no-reply@yourdomain.com' (for smtp: the mailbox you sign in with)
+        'from_name'  => 'AralTrack',
+        'host'       => '',
+        'port'       => 465,
+        'encryption' => 'ssl',       // 'ssl' (port 465), 'tls' (port 587) or '' (no encryption)
+        'username'   => '',
+        'password'   => '',
+    ],
+
     'db' => [
         'host' => '127.0.0.1',
         'port' => 3306,

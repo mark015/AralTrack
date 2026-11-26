@@ -797,3 +797,7 @@ main.container { padding-top: 1.75rem !important; padding-bottom: 3rem !importan
 /* The platform owner looking at a school's portal to help it */
 .owner-notice { background: #eee8ff; color: #3f1f99; border-bottom-color: #d9ccff; }
 [data-bs-theme="dark"] .owner-notice { background: rgba(124, 92, 255, .18); color: #d9ccff; border-bottom-color: rgba(124, 92, 255, .4); }
+
+/* Setup guide for teachers on their own (teacher/setup.php) */
+.setup-steps .step-num { flex: none; margin-bottom: 0; }
+.min-w-0 { min-width: 0; }

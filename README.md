@@ -182,6 +182,28 @@ before became workspace 1.
   inside one school. If the same LRN is in two schools, learner sign-in uses the school where the learner is
   enrolled this school year.
 
+## Teachers on their own (sign-up)
+
+A teacher whose school isn't on the system can create a free account at **signup.php** (linked from the home page
+and the staff sign-in page). They get a workspace of their own, with themselves as its only staff account.
+
+- **Sign-up:** name, email, the school where they teach (printed on cards and report cards) and a password. A
+  6-digit code is emailed to confirm the address; until then the account can't be used. They sign in with the email.
+- **Setup guide** (`teacher/setup.php`, shown until finished): 1 school and school year, 2 the classes they teach
+  (a subject in a section; common Senior High School subjects are listed, others can be typed), 3 their learners
+  (pasted from Excel or Google Sheets, or imported from an Excel file), 4 QR ID cards and parent slips.
+- **Their menu** has only what one teacher needs: My classes, learners and sections, parents, messages, news, and
+  Setup. Staff accounts are not available (one teacher per account).
+- **Forgot your password?** on the staff sign-in page emails a link (works once, for an hour). School staff without
+  an email on their account still ask their admin.
+- Learners and parents of a teacher sign in and register exactly like at a school.
+
+**Email is needed for sign-up.** In `config/config.local.php` on the server, set `app_url` (the site's address) and
+`mail` (a mailbox to send from; on Hostinger create e.g. `no-reply@yourdomain.com` under hPanel → Emails, then use
+`smtp.hostinger.com`, port 465, `ssl`, and that address and password). See `config/config.local.example.php`. Until
+both are set, the sign-up page says "Teacher sign-up opens soon". On your own computer with `debug` on, emails are
+not sent but saved in `storage/mail/`, and the code is shown on screen. `'teacher_signup' => false` closes sign-up.
+
 ## Backups
 
 **Platform console → Backups** (platform owner only, because a backup holds every school's data):
@@ -255,7 +277,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–009), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–010), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php), the current school (Workspace.php)
@@ -265,8 +287,9 @@ public/               the pages
   index.php                   public home page (the product, demo request form, sign-in links)
   grades.php                  learner report card
   learner/                    learner sign-in, home, schedule, subjects, scores, password
-  staff/                      staff sign-in, password change
-  teacher/                    classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
+  signup.php                  teacher sign-up (a workspace of their own)
+  staff/                      staff sign-in, email code, forgot/reset password, password change
+  teacher/                    setup guide (teachers on their own), classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
   parent/                     parent sign-up, sign-in, dashboard, child page, notifications, excuse letters
   admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles
   superadmin/                 control panel, accounts & sign-in, one person's access, activity log

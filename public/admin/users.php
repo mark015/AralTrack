@@ -3,6 +3,13 @@
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $staff = require_staff('admin');
+if (Workspace::isSolo()) {
+    Access::stopPage(
+        'Your account is for one teacher',
+        'A teacher account has just you as staff. To work with colleagues, your school can get a school account; '
+        . 'your classes and records can move into it.'
+    );
+}
 $isSuper = $staff['role'] === 'superadmin';
 // Only a Super Admin may create, change or turn off Admin and Super Admin accounts.
 $protectedRoles = ['admin', 'superadmin'];
