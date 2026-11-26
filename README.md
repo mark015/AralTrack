@@ -203,6 +203,21 @@ before became workspace 1.
   work even before the webhook is set. On a test computer with debug on and no key, the Billing page offers a
   *test payment* button instead.
 
+## Inviting staff, and a teacher joining a school
+
+- **Invite by email** (Staff accounts → *Invite by email*): the person gets a link (emailed when email is set up,
+  and shown to the admin to copy). It works once, for 14 days, for that email address only.
+- **Without an account**, the link lets them create one in the school (the role chosen in the invitation).
+- **A teacher who used the system on their own** signs in and opens the link. A preview shows what moves: their
+  classes with grades, attendance, class records and materials; their learners (matched with the school's by LRN);
+  parents (matched by mobile number or email); messages and excuse letters. They match each of their sections to the
+  school's section or bring it as a new one. A class the school set up for the same subject and section is taken
+  over only while it's still empty; if it has grades or attendance, the move waits until that's sorted out.
+  After confirming with their password, everything moves in one step (`src/WorkspaceMerge.php`): it checks every
+  link between records and undoes everything if one doesn't hold. Their own space closes; they sign in the same way.
+- **Billing:** the school pays for them as one more staff account. **If they leave**, the school turns their account
+  off and the records stay with the school.
+
 ## One person, several schools
 
 A learner or parent can be at more than one school or teacher on the system (a transferee, or a teacher using it on
@@ -316,7 +331,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–012), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–013), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php), the current school (Workspace.php)
@@ -328,6 +343,7 @@ public/               the pages
   learner/                    learner sign-in, home, schedule, subjects, scores, password
   signup.php                  teacher sign-up (a workspace of their own)
   billing.php, paymongo-webhook.php   plan and payments (PayMongo)
+  join.php                    accepting a school's invitation (and bringing your own classes)
   staff/                      staff sign-in, email code, forgot/reset password, password change
   teacher/                    setup guide (teachers on their own), classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
   parent/                     parent sign-up, sign-in, dashboard, child page, notifications, excuse letters

@@ -59,6 +59,11 @@ if (is_post()) {
             }
             login_staff($user);
             Access::logLogin('staff', (int) $user['id'], $username, true);
+            if (!empty($_SESSION['join_token']) && !$user['must_change_password']) {
+                $joinToken = (string) $_SESSION['join_token']; // came from a school's invitation link
+                unset($_SESSION['join_token']);
+                redirect('join.php?token=' . $joinToken);
+            }
             redirect($user['must_change_password'] ? 'staff/password.php' : home_for(current_staff()));
         } else {
             RateLimiter::recordFailure('staff', $key, $ip);

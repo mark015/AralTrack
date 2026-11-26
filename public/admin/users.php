@@ -30,6 +30,28 @@ if ($editId = get_int('edit')) {
     }
 }
 
+if (is_post() && in_array(post('action'), ['invite', 'cancel_invite'], true)) {
+    // Invite by email: the person creates their account, or brings their own classes into the school (join.php)
+    if (post('action') === 'invite') {
+        $email = mb_strtolower(trim(post('email')));
+        $role = isset(Invites::ROLES[post('invite_role')]) && ($isSuper || !in_array(post('invite_role'), $protectedRoles, true)) ? post('invite_role') : 'teacher';
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 150) {
+            flash('danger', 'Enter the email address of the person to invite.');
+        } elseif (db_value('SELECT 1 FROM users WHERE email = ? AND workspace_id = ?', [$email, ws()])) {
+            flash('info', 'Someone with that email is already a staff member here.');
+        } else {
+            [$invite, $link] = Invites::create(ws(), $email, $role, $staff['id']);
+            $sent = Invites::send($invite, $link, setting('school_name'), $staff['full_name']);
+            Access::log('account', "Invited {$email} as " . Invites::ROLES[$role], 'staff', null);
+            flash('success', ($sent ? "Invitation emailed to {$email}. " : '') . "Invitation link (works for " . Invites::DAYS . " days, for {$email} only): {$link}");
+        }
+    } else {
+        db_exec('UPDATE staff_invites SET cancelled_at = ? WHERE id = ? AND workspace_id = ? AND accepted_at IS NULL', [date('Y-m-d H:i:s'), post_int('id'), ws()]);
+        flash('success', 'Invitation cancelled.');
+    }
+    redirect('admin/users.php');
+}
+
 if (is_post()) {
     $action = post('action');
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
@@ -201,6 +223,41 @@ require APP_ROOT . '/templates/header.php';
                 </form>
             </div>
         </div>
+        <?php if (!$editing): $invites = Invites::open(); ?>
+            <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                    <h2 class="h5">Invite by email</h2>
+                    <p class="small text-secondary">The person gets a link to create their account. A teacher who already uses <?= e(config('app_name')) ?> for their own classes can bring them into the school.</p>
+                    <form method="post" action="<?= e(url('admin/users.php')) ?>" class="row g-2 align-items-end">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="invite">
+                        <div class="col-sm-7"><label class="form-label small" for="invite-email">Email</label><input class="form-control" type="email" id="invite-email" name="email" maxlength="150" required></div>
+                        <div class="col-sm-5"><label class="form-label small" for="invite-role">As</label>
+                            <select class="form-select" id="invite-role" name="invite_role">
+                                <?php foreach (Invites::ROLES as $value => $label): if (!$isSuper && in_array($value, $protectedRoles, true)) continue; ?>
+                                    <option value="<?= e($value) ?>"><?= e($label) ?></option>
+                                <?php endforeach; ?>
+                            </select></div>
+                        <div class="col-12"><button class="btn btn-outline-primary">Invite</button></div>
+                    </form>
+                    <?php if ($invites): ?>
+                        <ul class="list-unstyled small mt-3 mb-0">
+                            <?php foreach ($invites as $inv): ?>
+                                <li class="d-flex justify-content-between align-items-center gap-2 py-2 border-top">
+                                    <span><?= e($inv['email']) ?> · <?= e(Invites::ROLES[$inv['role']] ?? $inv['role']) ?><span class="text-secondary"> · until <?= e(date('M j', strtotime($inv['expires_at']))) ?></span></span>
+                                    <form method="post" action="<?= e(url('admin/users.php')) ?>" class="m-0">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="cancel_invite">
+                                        <input type="hidden" name="id" value="<?= (int) $inv['id'] ?>">
+                                        <button class="btn btn-sm btn-link text-danger p-0">Cancel</button>
+                                    </form>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
         <?php if ($editing): ?>
             <div class="card shadow-sm">
                 <div class="card-body">

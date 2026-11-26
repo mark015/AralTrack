@@ -32,6 +32,8 @@ require __DIR__ . '/TeacherSetup.php';
 require __DIR__ . '/Accounts.php';
 require __DIR__ . '/Billing.php';
 require __DIR__ . '/PayMongo.php';
+require __DIR__ . '/Invites.php';
+require __DIR__ . '/WorkspaceMerge.php';
 foreach (['Forms', 'FormSheets', 'Messages', 'DocumentRequests', 'ClassRecord', 'Backup'] as $optional) {
     if (is_file(__DIR__ . "/{$optional}.php")) {
         require __DIR__ . "/{$optional}.php";
