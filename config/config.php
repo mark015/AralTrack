@@ -36,6 +36,14 @@ return [
         'password'   => '',
     ],
 
+    // Online payments (GCash, Maya, cards, QR Ph) through PayMongo. Set the keys in config.local.php:
+    // secret_key from PayMongo → Developers (sk_test_… to try it, sk_live_… for real payments) and
+    // webhook_secret from the webhook you add there for <app_url>/paymongo-webhook.php (event checkout_session.payment.paid).
+    'paymongo' => [
+        'secret_key'     => '',
+        'webhook_secret' => '',
+    ],
+
     'db' => [
         'host' => '127.0.0.1',
         'port' => 3306,

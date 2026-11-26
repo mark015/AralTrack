@@ -83,6 +83,9 @@ final class TeacherSetup
     public static function addClass(array $staff, int $grade, string $strand, string $sectionName, string $subject, string $otherName, int $semester, bool $adviser): array
     {
         $sy = active_school_year() ?? throw new UserFacingException('Save the school year first (step 1).');
+        if ($limit = Billing::classLimitMessage()) {
+            throw new UserFacingException($limit);
+        }
         $sectionName = trim($sectionName);
         $strand = trim($strand);
         if (!in_array($grade, array_map('intval', (array) config('grade_levels')), true)) {

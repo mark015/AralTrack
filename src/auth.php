@@ -87,6 +87,7 @@ function require_staff(string ...$roles): array
     if ($roles && $user['role'] !== 'superadmin' && !in_array($user['role'], $roles, true)) {
         abort(403, 'Your account cannot open this page.');
     }
+    Billing::guardWrite(OfflinePages::currentPage()); // a school whose subscription ended can't change anything
     return $_SESSION['staff'];
 }
 

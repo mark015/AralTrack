@@ -214,6 +214,23 @@ $flashes = take_flashes();
         </div>
     </div>
 <?php endif; ?>
+<?php
+// Trial ending, renewal due, or read-only because the subscription ended (src/Billing.php)
+$navBill = $navStaff && !$navActing ? Billing::state() : null;
+$navBillShow = $navBill && ($navBill['code'] === 'expired' || (is_admin($navStaff) && ($navBill['code'] === 'grace' || ($navBill['code'] === 'trial' && $navBill['days_left'] !== null && $navBill['days_left'] <= 7))));
+?>
+<?php if ($navBillShow): ?>
+    <div class="portal-notice<?= $navBill['code'] === 'expired' ? ' billing-ended' : '' ?> d-print-none" role="status">
+        <div class="container py-2"><i class="bi bi-credit-card me-1" aria-hidden="true"></i>
+            <?= e(match ($navBill['code']) {
+                'trial' => $navBill['days_left'] === 0 ? 'Your free trial ends today.' : "Your free trial ends in {$navBill['days_left']} day" . ($navBill['days_left'] === 1 ? '' : 's') . '.',
+                'grace' => 'Your subscription has ended. Renew by ' . date('M j', strtotime($navBill['ends'])) . ' to keep making changes.',
+                default => 'The subscription has ended, so the portal is read-only: everything can be viewed, but nothing can be changed.',
+            }) ?>
+            <?php if (is_admin($navStaff)): ?><a href="<?= e(url('billing.php')) ?>"><?= $navBill['code'] === 'trial' ? 'See plans' : 'Renew now' ?></a><?php else: ?>Please tell your school's admin.<?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
 <?php if (!$navOwner && class_exists('Access', false) && Access::maintenance()): ?>
     <div class="portal-notice d-print-none" role="status">
         <div class="container py-2"><i class="bi bi-cone-striped me-1" aria-hidden="true"></i>

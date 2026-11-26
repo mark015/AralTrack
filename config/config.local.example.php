@@ -36,4 +36,12 @@ return [
         'username'   => 'no-reply@yourdomain.com',
         'password'   => 'the mailbox password',
     ],
+
+    // Online payments with PayMongo (dashboard → Developers): the secret key, and the secret of the webhook you add
+    // for https://yourdomain.com/paymongo-webhook.php with the event "checkout_session.payment.paid".
+    // Use the sk_test_ key first to try it; nothing is charged.
+    'paymongo' => [
+        'secret_key'     => 'sk_test_...',
+        'webhook_secret' => 'whsk_...',
+    ],
 ];

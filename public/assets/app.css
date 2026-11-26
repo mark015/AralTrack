@@ -801,3 +801,7 @@ main.container { padding-top: 1.75rem !important; padding-bottom: 3rem !importan
 /* Setup guide for teachers on their own (teacher/setup.php) */
 .setup-steps .step-num { flex: none; margin-bottom: 0; }
 .min-w-0 { min-width: 0; }
+
+/* Subscription ended: the portal is read-only (src/Billing.php) */
+.portal-notice.billing-ended { background: #fde4e8; color: #8f1f33; border-bottom-color: #f6c2cc; }
+[data-bs-theme="dark"] .portal-notice.billing-ended { background: rgba(217, 54, 74, .18); color: #ffc2cc; border-bottom-color: rgba(217, 54, 74, .4); }

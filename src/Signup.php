@@ -25,8 +25,8 @@ final class Signup
         $pdo->beginTransaction();
         try {
             db_exec(
-                "INSERT INTO workspaces (type, name, plan, contact_name, contact_email) VALUES ('teacher', ?, 'trial', ?, ?)",
-                [$schoolName, $name, $email]
+                "INSERT INTO workspaces (type, name, plan, trial_ends_at, contact_name, contact_email) VALUES ('teacher', ?, 'trial', ?, ?, ?)",
+                [$schoolName, Billing::trialEnd(), $name, $email]
             );
             $workspaceId = (int) $pdo->lastInsertId();
             db_exec("INSERT INTO settings (workspace_id, name, value) VALUES (?, 'school_name', ?), (?, 'setup_done', '0')", [$workspaceId, $schoolName, $workspaceId]);

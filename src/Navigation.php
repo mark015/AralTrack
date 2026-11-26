@@ -62,6 +62,7 @@ final class Navigation
                 ['Subjects', 'journal-bookmark', 'admin/subjects.php'],
                 ['School years', 'calendar3', 'admin/school-years.php'],
                 ['Settings', 'sliders', 'admin/settings.php'],
+                ['Billing', 'credit-card', 'billing.php'],
                 ['Learner & parent sign-in', 'person-lock', 'superadmin/accounts.php'],
                 ['Control panel', 'toggles', 'superadmin/index.php'],
             ]],
@@ -98,6 +99,7 @@ final class Navigation
             ['School years', 'calendar3', 'admin/school-years.php'],
             ['Staff accounts', 'person-badge', 'admin/users.php'],
             ['Settings', 'sliders', 'admin/settings.php'],
+            ['Billing', 'credit-card', 'billing.php'],
         ];
         $schoolMenu = [
             ['Dashboard', 'speedometer2', 'admin/index.php'],
@@ -163,6 +165,7 @@ final class Navigation
         return [
             ['Schools', 'buildings', 'platform/index.php', 'also' => ['platform/workspace.php']],
             ['Demo requests', 'inbox', 'platform/leads.php', 'badge' => $leads],
+            ['Billing', 'credit-card', 'platform/billing.php'],
             ['Backups', 'database-down', 'platform/backup.php'],
             ['Home page', 'globe2', 'index.php'],
         ];

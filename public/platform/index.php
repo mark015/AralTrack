@@ -41,8 +41,8 @@ if (is_post() && post('action') === 'add') {
         $pdo->beginTransaction();
         try {
             db_exec(
-                'INSERT INTO workspaces (type, name, plan, contact_name, contact_email, contact_phone) VALUES (?, ?, ?, ?, ?, ?)',
-                [$form['type'], $form['name'], $form['plan'], $form['contact_name'] ?: null, $form['contact_email'] ?: null, $form['contact_phone'] ?: null]
+                'INSERT INTO workspaces (type, name, plan, trial_ends_at, contact_name, contact_email, contact_phone) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [$form['type'], $form['name'], $form['plan'], $form['plan'] === 'trial' ? Billing::trialEnd() : null, $form['contact_name'] ?: null, $form['contact_email'] ?: null, $form['contact_phone'] ?: null]
             );
             $workspaceId = (int) $pdo->lastInsertId();
             db_exec(
@@ -130,7 +130,8 @@ require APP_ROOT . '/templates/header.php';
                     <?php endif; ?>
                 </td>
                 <td><?= e(Workspace::TYPES[$w['type']] ?? $w['type']) ?></td>
-                <td><?= e(Workspace::PLANS[$w['plan']] ?? $w['plan']) ?></td>
+                <?php $bill = Billing::state($w); ?>
+                <td class="small"><?= e($bill['label']) ?><?= $bill['ends'] ? '<div class="text-secondary">until ' . e(date('M j', strtotime($bill['ends']))) . '</div>' : '' ?><?= $bill['read_only'] ? '<div class="text-danger">read-only</div>' : '' ?></td>
                 <td class="text-center"><?= (int) $w['staff'] ?></td>
                 <td class="text-center"><?= (int) $w['learners'] ?></td>
                 <td class="text-center"><?= (int) $w['parents'] ?></td>

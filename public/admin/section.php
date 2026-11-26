@@ -57,6 +57,10 @@ if (is_post()) {
                 flash('danger', 'Choose a subject, a semester and a teacher.');
                 break;
             }
+            if ($limit = Billing::classLimitMessage()) {
+                flash('warning', $limit);
+                break;
+            }
             try {
                 db_exec('INSERT INTO class_assignments (workspace_id, section_id, subject_id, teacher_id, semester) VALUES (?, ?, ?, ?, ?)', [ws(), $sectionId, $subjectId, $teacherId, $semester]);
                 flash('success', 'Subject added to this section.');

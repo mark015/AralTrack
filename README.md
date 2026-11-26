@@ -182,6 +182,27 @@ before became workspace 1.
   inside one school. If the same LRN is in two schools, learner sign-in uses the school where the learner is
   enrolled this school year.
 
+## Billing (plans and payments)
+
+- **Plans** (per school or teacher, set in the platform console): *Free* (a school you give it to for free, or the
+  limited free plan for a teacher on their own), *Free trial* (everything, for the trial days), *Paid* (until a date).
+- **A school pays per staff account**, monthly or yearly; **a teacher on their own** pays one price (*Teacher Pro*).
+  Prices, trial days, the days to renew after it ends, and the free teacher plan's number of classes are set under
+  **Platform console → Billing**, with the bank transfer instructions schools see.
+- **Billing page** (`billing.php`, under Setup/Control for the Super Admin and admins): the plan, paying online with
+  GCash, Maya, card or QR Ph (PayMongo's hosted checkout), bank transfer instructions, and past payments.
+- **When a school's trial or paid time is over** (after the renewal days), its portal becomes **read-only**: everyone
+  can still sign in and see everything, but staff can't change anything (no grades, no attendance) until it renews.
+  A banner says so. A teacher on their own falls back to the free plan instead (no new classes over the limit).
+- **Bank transfer or cash:** record it under Platform console → Billing; the school is paid for the months entered.
+  The console's school page also lets you change a school's plan, trial end and paid-until dates.
+- **PayMongo setup** (in `config/config.local.php`, see the example file): `paymongo.secret_key` (start with the
+  `sk_test_` key: nothing is charged) and `app_url`. In PayMongo → Developers → Webhooks, add
+  `https://yourdomain.com/paymongo-webhook.php` with the event `checkout_session.payment.paid` and put its secret in
+  `paymongo.webhook_secret`. Payments are also confirmed when the payer returns from the checkout page, so they
+  work even before the webhook is set. On a test computer with debug on and no key, the Billing page offers a
+  *test payment* button instead.
+
 ## One person, several schools
 
 A learner or parent can be at more than one school or teacher on the system (a transferee, or a teacher using it on
@@ -295,7 +316,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–011), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–012), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php), the current school (Workspace.php)
@@ -306,12 +327,13 @@ public/               the pages
   grades.php                  learner report card
   learner/                    learner sign-in, home, schedule, subjects, scores, password
   signup.php                  teacher sign-up (a workspace of their own)
+  billing.php, paymongo-webhook.php   plan and payments (PayMongo)
   staff/                      staff sign-in, email code, forgot/reset password, password change
   teacher/                    setup guide (teachers on their own), classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
   parent/                     parent sign-up, sign-in, dashboard, child page, notifications, excuse letters
   admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles
   superadmin/                 control panel, accounts & sign-in, one person's access, activity log
-  platform/                   platform owner console: schools, demo requests, backups
+  platform/                   platform owner console: schools, demo requests, billing, backups
   print/                      SF9, SF10, certificates
   messages.php, requests.php, news.php, privacy.php, file.php
   manifest.webmanifest, sw.js, offline.html   installable app

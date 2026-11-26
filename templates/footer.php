@@ -4,8 +4,9 @@
         <div class="d-flex align-items-center gap-2">
             <?= brand_mark(30) ?>
             <div class="lh-sm">
-                <div class="fw-semibold text-body"><?= e(Workspace::known() ? setting('school_name') : config('app_name')) ?></div>
-                <div><?= Workspace::known() ? e(config('app_name')) . ' · Senior High School' : 'Grades, QR attendance and parent updates for schools' ?></div>
+                <?php $footSchool = empty($navOwner) && Workspace::known(); // the platform console shows the system's name ?>
+                <div class="fw-semibold text-body"><?= e($footSchool ? setting('school_name') : config('app_name')) ?></div>
+                <div><?= $footSchool ? e(config('app_name')) . ' · Senior High School' : 'Grades, QR attendance and parent updates for schools' ?></div>
             </div>
         </div>
         <nav class="d-flex flex-wrap gap-3" aria-label="Footer">

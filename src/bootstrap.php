@@ -30,6 +30,8 @@ require __DIR__ . '/Mailer.php';
 require __DIR__ . '/Signup.php';
 require __DIR__ . '/TeacherSetup.php';
 require __DIR__ . '/Accounts.php';
+require __DIR__ . '/Billing.php';
+require __DIR__ . '/PayMongo.php';
 foreach (['Forms', 'FormSheets', 'Messages', 'DocumentRequests', 'ClassRecord', 'Backup'] as $optional) {
     if (is_file(__DIR__ . "/{$optional}.php")) {
         require __DIR__ . "/{$optional}.php";
@@ -87,7 +89,7 @@ if (!isset($_SESSION['workspace_id']) && (isset($_SESSION['staff']) || isset($_S
     $_SESSION['workspace_id'] = 1; // signed in before workspaces existed: all those accounts are in the first school
 }
 
-if (is_post()) {
+if (is_post() && !defined('SKIP_CSRF')) { // only the PayMongo webhook skips it (it checks PayMongo's signature instead)
     verify_csrf();
 }
 

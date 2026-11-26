@@ -22,7 +22,13 @@ if (is_post()) {
         $data = [
             'type' => post('type'), 'name' => post('name'), 'plan' => post('plan'), 'contact_name' => post('contact_name'),
             'contact_email' => post('contact_email'), 'contact_phone' => post('contact_phone'), 'notes' => mb_substr(post('notes'), 0, 5000),
+            'trial_ends_at' => post('trial_ends_at'), 'paid_until' => post('paid_until'),
         ];
+        foreach (['trial_ends_at', 'paid_until'] as $dateField) {
+            if ($data[$dateField] !== '' && !valid_ymd($data[$dateField])) {
+                $errors[] = 'Check the trial and paid-until dates.';
+            }
+        }
         if (!isset(Workspace::TYPES[$data['type']]) || !isset(Workspace::PLANS[$data['plan']])) {
             $errors[] = 'Choose a type and a plan.';
         }
@@ -37,8 +43,9 @@ if (is_post()) {
         }
         if (!$errors) {
             db_exec(
-                'UPDATE workspaces SET type = ?, name = ?, plan = ?, contact_name = ?, contact_email = ?, contact_phone = ?, notes = ? WHERE id = ?',
-                [$data['type'], $data['name'], $data['plan'], $data['contact_name'] ?: null, $data['contact_email'] ?: null, $data['contact_phone'] ?: null, $data['notes'] ?: null, $id]
+                'UPDATE workspaces SET type = ?, name = ?, plan = ?, contact_name = ?, contact_email = ?, contact_phone = ?, notes = ?, trial_ends_at = ?, paid_until = ? WHERE id = ?',
+                [$data['type'], $data['name'], $data['plan'], $data['contact_name'] ?: null, $data['contact_email'] ?: null, $data['contact_phone'] ?: null, $data['notes'] ?: null,
+                 $data['trial_ends_at'] ?: null, $data['paid_until'] ?: null, $id]
             );
             // The name printed on report cards and forms follows
             db_exec(
@@ -123,7 +130,8 @@ require APP_ROOT . '/templates/header.php';
     <div>
         <h1 class="h3"><?= e($workspace['name']) ?>
             <?= $workspace['status'] === 'active' ? '<span class="badge text-bg-success align-middle fs-6">Active</span>' : '<span class="badge text-bg-danger align-middle fs-6">Paused</span>' ?></h1>
-        <p class="sub"><?= e(Workspace::TYPES[$workspace['type']] ?? $workspace['type']) ?> · <?= e(Workspace::PLANS[$workspace['plan']] ?? $workspace['plan']) ?> · added <?= e(date('M j, Y', strtotime($workspace['created_at']))) ?></p>
+        <?php $bill = Billing::state($workspace); ?>
+        <p class="sub"><?= e(Workspace::TYPES[$workspace['type']] ?? $workspace['type']) ?> · <?= e($bill['label']) ?><?= $bill['ends'] ? ' until ' . e(date('M j, Y', strtotime($bill['ends']))) : '' ?><?= $bill['read_only'] ? ' · <span class="text-danger fw-semibold">read-only</span>' : '' ?> · added <?= e(date('M j, Y', strtotime($workspace['created_at']))) ?></p>
     </div>
 </div>
 
@@ -216,6 +224,14 @@ require APP_ROOT . '/templates/header.php';
                                 <option value="<?= e($value) ?>"<?= $w['plan'] === $value ? ' selected' : '' ?>><?= e($label) ?></option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label small" for="trial_ends_at">Trial ends</label>
+                        <input class="form-control" type="date" id="trial_ends_at" name="trial_ends_at" value="<?= e((string) $w['trial_ends_at']) ?>">
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label small" for="paid_until">Paid until</label>
+                        <input class="form-control" type="date" id="paid_until" name="paid_until" value="<?= e((string) $w['paid_until']) ?>">
                     </div>
                     <div class="col-12">
                         <label class="form-label small" for="notes">Notes (only you see these)</label>
