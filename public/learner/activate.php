@@ -20,7 +20,20 @@ if (is_post()) {
     } elseif (RateLimiter::isLocked('student', $lrn, $ip)) {
         $error = 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.';
     } else {
-        $student = learner_for_lrn($lrn);
+        // The record to activate: at a school that uses learner passwords, not activated yet (else the first one)
+        $records = learner_records_for_lrn($lrn);
+        $modes = [];
+        foreach ($records as $record) {
+            $modes[(int) $record['id']] = Workspace::within((int) $record['workspace_id'], static fn () => (string) setting('learner_login'));
+        }
+        $student = null;
+        foreach ($records as $record) {
+            if ($modes[(int) $record['id']] === 'password' && $record['password_hash'] === null) {
+                $student = $record;
+                break;
+            }
+        }
+        $student ??= $records[0] ?? null;
         if ($student) {
             Workspace::switchTo((int) $student['workspace_id']); // the learner's school decides
         }
@@ -34,9 +47,19 @@ if (is_post()) {
             $error = 'Your access to the portal was turned off by the school. Please talk to your adviser.';
             Access::logLogin('learner', (int) $student['id'], $lrn, false, 'turned off');
         } elseif ($student && hash_equals($student['birthdate'], $birthdate)) {
-            db_exec('UPDATE students SET password_hash = ? WHERE id = ? AND workspace_id = ?', [password_hash($new, PASSWORD_DEFAULT), $student['id'], ws()]);
+            // The same password for this learner's other records that wait for one (same birthdate)
+            $hash = password_hash($new, PASSWORD_DEFAULT);
+            $activated = [];
+            foreach ($records as $record) {
+                if ((int) $record['id'] === (int) $student['id'] || ($modes[(int) $record['id']] === 'password'
+                        && $record['password_hash'] === null && hash_equals((string) $record['birthdate'], $birthdate) && !$record['login_blocked'])) {
+                    db_exec('UPDATE students SET password_hash = ? WHERE id = ?', [$hash, $record['id']]);
+                    $activated[] = $record;
+                }
+            }
             RateLimiter::clear('student', $lrn);
             login_student((int) $student['id']);
+            Accounts::remember('learner', $activated);
             Access::logLogin('learner', (int) $student['id'], $lrn, true, 'activated');
             flash('success', 'Your account is ready. Next time, sign in with your LRN and this password.');
             redirect('learner/index.php');

@@ -19,7 +19,12 @@ if (is_post()) {
         $errors[] = 'The two new passwords do not match.';
     }
     if (!$errors) {
-        db_exec('UPDATE students SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $student['id']]);
+        // Also the same learner's records at other schools opened at sign-in
+        $ids = array_values(array_unique([(int) $student['id'], ...Accounts::ids('learner')]));
+        db_exec(
+            'UPDATE students SET password_hash = ? WHERE id IN (' . implode(',', $ids) . ') AND lrn = ?',
+            [password_hash($new, PASSWORD_DEFAULT), $student['lrn']]
+        );
         session_regenerate_id(true);
         flash('success', 'Your password has been changed.');
         redirect('learner/index.php');

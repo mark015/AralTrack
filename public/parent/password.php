@@ -20,7 +20,12 @@ if (is_post()) {
         $errors[] = 'The new password must be different from the current one.';
     }
     if (!$errors) {
-        db_exec('UPDATE parents SET password_hash = ?, must_change_password = 0 WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $parent['id']]);
+        // Also the same parent's records at other schools opened with this sign-in, so one password keeps opening all
+        $ids = array_values(array_unique([(int) $parent['id'], ...Accounts::ids('parent')]));
+        db_exec(
+            'UPDATE parents SET password_hash = ?, must_change_password = 0 WHERE id IN (' . implode(',', $ids) . ') AND login = ?',
+            [password_hash($new, PASSWORD_DEFAULT), $parent['login']]
+        );
         session_regenerate_id(true);
         flash('success', 'Your password has been changed.');
         redirect('parent/index.php');

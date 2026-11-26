@@ -90,5 +90,21 @@ require APP_ROOT . '/templates/header.php';
     <?php endif; ?>
 </div>
 
+<?php $otherPlaces = array_values(array_filter(Accounts::places('learner', current_student_id() ?? 0), static fn ($p) => !$p['current'])); ?>
+<?php if ($otherPlaces): // the same learner at other schools or with other teachers ?>
+    <div class="card my-4">
+        <div class="card-body d-flex flex-wrap align-items-center gap-2">
+            <span class="me-2"><i class="bi bi-building me-1" aria-hidden="true"></i>You also have classes at:</span>
+            <?php foreach ($otherPlaces as $place): ?>
+                <form method="post" action="<?= e(url('switch.php')) ?>" class="m-0">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="type" value="learner">
+                    <input type="hidden" name="to" value="<?= (int) $place['id'] ?>">
+                    <button class="btn btn-sm btn-outline-primary"><?= e($place['label']) ?></button>
+                </form>
+            <?php endforeach; ?>
+        </div>
+    </div>
+<?php endif; ?>
 <?php $newsViewer = 'families'; require APP_ROOT . '/templates/news-widget.php'; ?>
 <?php require APP_ROOT . '/templates/footer.php'; ?>

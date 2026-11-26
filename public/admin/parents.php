@@ -17,7 +17,7 @@ if (is_post() && post('action') === 'create') {
     }
     if ($login === null) {
         $errors[] = 'Enter a mobile number (09XX XXX XXXX) or an email address.';
-    } elseif (db_value('SELECT id FROM parents WHERE login = ?', [$login])) {
+    } elseif (db_value('SELECT id FROM parents WHERE login = ? AND workspace_id = ?', [$login, ws()])) {
         $errors[] = 'A parent account with this mobile number or email already exists.';
     }
     if (mb_strlen($password) < 8) {

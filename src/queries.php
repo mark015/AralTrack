@@ -222,6 +222,23 @@ function learner_for_lrn(string $lrn): ?array
     );
 }
 
+/**
+ * Every record of a typed LRN, at every school, in the same order as learner_for_lrn(), with the school's status.
+ * @return list<array>
+ */
+function learner_records_for_lrn(string $lrn): array
+{
+    return db_all(
+        "SELECT st.*, w.status AS workspace_status FROM students st
+           JOIN workspaces w         ON w.id = st.workspace_id
+           LEFT JOIN school_years sy ON sy.workspace_id = st.workspace_id AND sy.is_active = 1
+           LEFT JOIN enrollments e   ON e.student_id = st.id AND e.school_year_id = sy.id
+          WHERE st.lrn = ?
+          ORDER BY w.status = 'active' DESC, e.id IS NOT NULL DESC, st.status = 'active' DESC, st.id DESC",
+        [$lrn]
+    );
+}
+
 /** Staff who see every learner (not just their own classes or advisory). */
 function sees_all_learners(array $staff): bool
 {

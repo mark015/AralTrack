@@ -20,31 +20,50 @@ if (is_post()) {
         $error = 'Too many unsuccessful tries. Please wait ' . config('login_window_min') . ' minutes and try again.';
         Access::logLogin('parent', null, $login, false, 'locked');
     } else {
-        $parent = db_one('SELECT * FROM parents WHERE login = ?', [$login]);
-        $ok = password_verify($password, $parent['password_hash'] ?? DUMMY_PASSWORD_HASH);
-        if ($parent && $ok) {
-            Workspace::switchTo((int) $parent['workspace_id']); // the parent's school: its sign-in switches and settings
+        // The same mobile number or email can have a record at several schools (or teachers). Every record with
+        // this password is opened together, and the parent switches between them (src/Accounts.php).
+        $records = db_all('SELECT * FROM parents WHERE login = ? ORDER BY last_login_at IS NULL, last_login_at DESC, id', [$login]);
+        $matched = array_values(array_filter($records, static fn (array $r): bool => password_verify($password, $r['password_hash'])));
+        if (!$records) {
+            password_verify($password, DUMMY_PASSWORD_HASH); // same time whether or not the account exists
         }
-        if ($parent && $ok && Workspace::isSuspended()) {
-            $error = Workspace::suspendedMessage();
-            Access::logLogin('parent', (int) $parent['id'], $login, false, 'school paused');
-        } elseif ($parent && $ok && !Access::loginOpen('parent')) {
-            $error = Access::closedMessage('parent');
-            Access::logLogin('parent', (int) $parent['id'], $login, false, Access::maintenance() ? 'maintenance' : 'sign-in off');
-        } elseif ($parent && $ok && !$parent['is_active']) {
-            $error = 'Your account was turned off by the school.' . ($parent['blocked_reason'] ? ' Reason: ' . $parent['blocked_reason'] . '.' : '') . ' Please contact the registrar.';
-            Access::logLogin('parent', (int) $parent['id'], $login, false, 'turned off');
-        } elseif ($parent && $ok) {
-            RateLimiter::clear('parent', $login);
-            if (password_needs_rehash($parent['password_hash'], PASSWORD_DEFAULT)) {
-                db_exec('UPDATE parents SET password_hash = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $parent['id']]);
+        $usable = [];
+        $refusal = null;
+        foreach ($matched as $record) {
+            // Each school's own rules: paused, parent sign-in closed or maintenance, account turned off
+            Workspace::switchTo((int) $record['workspace_id']);
+            $reason = match (true) {
+                Workspace::isSuspended() => [Workspace::suspendedMessage(), 'school paused'],
+                !Access::loginOpen('parent') => [Access::closedMessage('parent'), Access::maintenance() ? 'maintenance' : 'sign-in off'],
+                !$record['is_active'] => ['Your account was turned off by the school.' . ($record['blocked_reason'] ? ' Reason: ' . $record['blocked_reason'] . '.' : '') . ' Please contact the registrar.', 'turned off'],
+                default => null,
+            };
+            if ($reason === null) {
+                $usable[] = $record;
+            } else {
+                $refusal ??= $reason[0];
+                Access::logLogin('parent', (int) $record['id'], $login, false, $reason[1]);
             }
+        }
+        if ($usable) {
+            RateLimiter::clear('parent', $login);
+            foreach ($usable as $record) {
+                if (password_needs_rehash($record['password_hash'], PASSWORD_DEFAULT)) {
+                    db_exec('UPDATE parents SET password_hash = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $record['id']]);
+                }
+            }
+            $parent = $usable[0];
             login_parent($parent);
-            Access::logLogin('parent', (int) $parent['id'], $login, true);
+            Accounts::remember('parent', $usable);
+            foreach ($usable as $record) {
+                Access::logLogin('parent', (int) $record['id'], $login, true);
+            }
             redirect($parent['must_change_password'] ? 'parent/password.php' : 'parent/index.php');
+        } elseif ($refusal !== null) {
+            $error = $refusal; // only after the right password, so the form can't show who has an account
         } else {
             RateLimiter::recordFailure('parent', $login, $ip);
-            Access::logLogin('parent', $parent ? (int) $parent['id'] : null, $login, false, 'wrong password');
+            Access::logLogin('parent', $records ? (int) $records[0]['id'] : null, $login, false, 'wrong password');
             $error = 'Incorrect mobile number/email or password.';
         }
     }

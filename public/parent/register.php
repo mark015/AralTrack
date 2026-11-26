@@ -34,8 +34,6 @@ if (is_post()) {
     }
     if ($login === null) {
         $errors[] = 'Enter a mobile number (like 0917 123 4567) or an email address.';
-    } elseif (db_value('SELECT id FROM parents WHERE login = ?', [$login])) {
-        $errors[] = 'An account with this mobile number or email already exists. Sign in, then use "Add a child".';
     }
     if (mb_strlen($password) < 8) {
         $errors[] = 'Choose a password of at least 8 characters.';
@@ -60,6 +58,16 @@ if (is_post()) {
                 $errors[] = Workspace::suspendedMessage();
             } elseif (!Access::parentRegistrationOpen()) {
                 $errors[] = 'The school is not accepting new parent accounts right now. Please ask the registrar.';
+            } elseif (db_value('SELECT 1 FROM parents WHERE workspace_id = ? AND login = ?', [ws(), $login])) {
+                $errors[] = 'An account with this mobile number or email already exists at this school. Sign in, then use "Add a child".';
+            } else {
+                // The same number or email at another school (or teacher): one password opens all of them, so it
+                // must be that account's password. Otherwise: sign in there and use "Add a child".
+                $elsewhere = db_all('SELECT password_hash FROM parents WHERE login = ?', [$login]);
+                if ($elsewhere && !array_filter($elsewhere, static fn ($r) => password_verify($password, $r['password_hash']))) {
+                    $errors[] = 'This mobile number or email already has a parent account at another school. Use the same password as that account, '
+                        . 'so one sign-in opens both. Or sign in with it and use "Add a child".';
+                }
             }
         }
     }
@@ -80,10 +88,14 @@ if (is_post()) {
             if (!is_duplicate_error($e)) {
                 throw $e;
             }
-            $errors[] = 'An account with this mobile number or email already exists. Sign in, then use "Add a child".';
+            $errors[] = 'An account with this mobile number or email already exists at this school. Sign in, then use "Add a child".';
         }
         if (!$errors) {
             login_parent(['id' => $parentId, 'full_name' => $form['full_name'], 'workspace_id' => ws()]);
+            // Together with the same parent's records at other schools (same password)
+            $mine = array_filter(db_all('SELECT * FROM parents WHERE login = ? AND is_active = 1', [$login]), static fn ($r) => password_verify($password, $r['password_hash']));
+            usort($mine, static fn ($a, $b) => ((int) $b['id'] === $parentId) <=> ((int) $a['id'] === $parentId)); // this school first
+            Accounts::remember('parent', $mine);
             Access::logLogin('parent', $parentId, (string) normalize_parent_login($form['login']), true, 'registered');
             flash('success', "Your account is ready. {$student['first_name']}'s attendance and grades are below.");
             redirect('parent/index.php');

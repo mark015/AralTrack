@@ -16,6 +16,9 @@ $navHome = $navOwner ? 'platform/index.php'
     : ($navStaff ? home_for($navStaff) : ($navParent ? 'parent/index.php' : ($navLearner ? 'learner/index.php' : 'index.php')));
 $navSchool = !$navOwner && Workspace::known() ? setting('school_name') : null;
 $navActing = $navStaff && !empty($_SESSION['acting_owner']) && current_owner();
+// A parent or learner with records at several schools (or teachers) switches between them (src/Accounts.php)
+$navPlaces = $navParent ? Accounts::places('parent', (int) $navParent['id'])
+    : ($navStudentId !== null ? Accounts::places('learner', $navStudentId) : []);
 // Offline viewing (src/OfflinePages.php): the device may keep this page, and saves the main pages by itself.
 // Not while the platform owner is looking at a school's portal.
 $offlineKey = ($navOwner || $navActing) ? null : OfflinePages::accountKey($navStaff, $navParent, $navStudentId);
@@ -147,6 +150,21 @@ $flashes = take_flashes();
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            <?php if ($navPlaces): ?>
+                                <li><h6 class="dropdown-header">Your schools</h6></li>
+                                <?php foreach ($navPlaces as $place): ?>
+                                    <li>
+                                        <form method="post" action="<?= e(url('switch.php')) ?>" class="m-0">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="type" value="<?= $navParent ? 'parent' : 'learner' ?>">
+                                            <input type="hidden" name="to" value="<?= (int) $place['id'] ?>">
+                                            <button class="dropdown-item<?= $place['current'] ? ' active' : '' ?>"<?= $place['current'] ? ' disabled aria-current="true"' : '' ?>>
+                                                <i class="bi bi-<?= $place['current'] ? 'check2' : 'building' ?>"></i><?= e($place['label']) ?></button>
+                                        </form>
+                                    </li>
+                                <?php endforeach; ?>
+                                <li><hr class="dropdown-divider"></li>
+                            <?php endif; ?>
                             <?php if ($navParent): ?>
                                 <li><a class="dropdown-item" href="<?= e(url('parent/link.php')) ?>"><i class="bi bi-person-plus"></i>Add a child</a></li>
                             <?php endif; ?>

@@ -157,4 +157,41 @@ require APP_ROOT . '/templates/header.php';
         </div>
     <?php endforeach; ?>
 </div>
+
+<?php
+// The same parent at other schools (or teachers): their children there, one click away
+$otherPlaces = array_values(array_filter(Accounts::places('parent', (int) $parent['id']), static fn ($p) => !$p['current']));
+if ($otherPlaces):
+    $byRecord = [];
+    foreach ($otherPlaces as $place) {
+        $byRecord[$place['id']] = $place;
+    }
+    $otherChildren = db_all(
+        'SELECT ps.parent_id, st.id, st.first_name, st.last_name, st.middle_name FROM parent_students ps JOIN students st ON st.id = ps.student_id
+          WHERE ps.parent_id IN (' . implode(',', array_keys($byRecord)) . ') ORDER BY st.first_name'
+    ); ?>
+    <h2 class="section-title mt-5">Your children at other schools</h2>
+    <div class="row g-3">
+        <?php foreach ($otherChildren as $other): $place = $byRecord[(int) $other['parent_id']]; ?>
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <?= avatar($other['first_name'] . ' ' . $other['last_name']) ?>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold"><?= e(student_name($other)) ?></div>
+                            <div class="small text-secondary text-truncate"><?= e($place['label']) ?></div>
+                        </div>
+                        <form method="post" action="<?= e(url('switch.php')) ?>" class="m-0">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="type" value="parent">
+                            <input type="hidden" name="to" value="<?= (int) $place['id'] ?>">
+                            <input type="hidden" name="child" value="<?= (int) $other['id'] ?>">
+                            <button class="btn btn-sm btn-outline-primary">Open</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
 <?php require APP_ROOT . '/templates/footer.php'; ?>

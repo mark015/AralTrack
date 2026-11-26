@@ -91,6 +91,11 @@ final class Attendance
         }
         $token = token_from_scan($scanned);
         $student = $token !== null ? db_one('SELECT * FROM students WHERE qr_token = ? AND workspace_id = ?', [$token, ws()]) : null;
+        $linked = false;
+        if (!$student && $token !== null) {
+            $student = self::linkCard($token, (int) $session['class']['section_id']);
+            $linked = $student !== null;
+        }
         if (!$student) {
             $log('unknown');
             return ['kind' => 'error', 'accepted' => false, 'message' => 'Unknown QR code. It may be an old card that was replaced, or not a learner ID.'];
@@ -128,9 +133,39 @@ final class Attendance
         return [
             'kind' => $status === 'late' ? 'warning' : 'success',
             'accepted' => true,
-            'message' => student_name($student) . ' — ' . ATTENDANCE_STATUSES[$status] . ' at ' . date('g:i A', $now),
+            'message' => student_name($student) . ' — ' . ATTENDANCE_STATUSES[$status] . ' at ' . date('g:i A', $now)
+                . ($linked ? '. Their ID card from another school now works in your classes too.' : ''),
             'student' => self::rowForDisplay($student, self::markRow((int) $session['id'], $studentId)),
         ];
+    }
+
+    /**
+     * One ID card for every school. A card that isn't known here but belongs to a learner at another school
+     * (or teacher) is linked to the learner with the same LRN enrolled in this class: from then on that card
+     * works here too. Having the card in class plus the same LRN in the class list is the proof; nothing about
+     * the other school is shown or copied except the card code. Returns the learner, or null.
+     */
+    private static function linkCard(string $token, int $sectionId): ?array
+    {
+        $lrns = db_all(
+            "SELECT DISTINCT st.lrn FROM students st JOIN workspaces w ON w.id = st.workspace_id AND w.status = 'active'
+              WHERE st.qr_token = ? AND st.workspace_id <> ?",
+            [$token, ws()]
+        );
+        if (count($lrns) !== 1) {
+            return null;
+        }
+        $student = db_one(
+            'SELECT st.* FROM students st JOIN enrollments e ON e.student_id = st.id AND e.section_id = ?
+              WHERE st.lrn = ? AND st.workspace_id = ?',
+            [$sectionId, $lrns[0]['lrn'], ws()]
+        );
+        if (!$student) {
+            return null;
+        }
+        db_exec('UPDATE students SET qr_token = ? WHERE id = ? AND workspace_id = ?', [$token, $student['id'], ws()]);
+        Access::log('card', 'Linked ' . student_name($student) . "'s ID card from another school (same LRN, scanned in class)", 'learner', (int) $student['id']);
+        return ['qr_token' => $token] + $student;
     }
 
     /**

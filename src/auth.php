@@ -155,7 +155,7 @@ function login_parent(array $parent): void
 
 function logout_parent(): void
 {
-    unset($_SESSION['parent']);
+    unset($_SESSION['parent'], $_SESSION['parent_rows']);
     session_regenerate_id(true);
 }
 
@@ -229,7 +229,7 @@ function login_student(int $studentId): void
 
 function logout_student(): void
 {
-    unset($_SESSION['student_id']);
+    unset($_SESSION['student_id'], $_SESSION['student_rows']);
     session_regenerate_id(true);
 }
 

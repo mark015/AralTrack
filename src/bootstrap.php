@@ -29,6 +29,7 @@ require __DIR__ . '/OfflinePages.php';
 require __DIR__ . '/Mailer.php';
 require __DIR__ . '/Signup.php';
 require __DIR__ . '/TeacherSetup.php';
+require __DIR__ . '/Accounts.php';
 foreach (['Forms', 'FormSheets', 'Messages', 'DocumentRequests', 'ClassRecord', 'Backup'] as $optional) {
     if (is_file(__DIR__ . "/{$optional}.php")) {
         require __DIR__ . "/{$optional}.php";

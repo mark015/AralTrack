@@ -182,6 +182,24 @@ before became workspace 1.
   inside one school. If the same LRN is in two schools, learner sign-in uses the school where the learner is
   enrolled this school year.
 
+## One person, several schools
+
+A learner or parent can be at more than one school or teacher on the system (a transferee, or a teacher using it on
+their own). Each school keeps its own record; the records are joined only with proof, so no school can open another
+school's records (`src/Accounts.php`).
+
+- **Parents:** one mobile number or email and one password open every school where they have a child. *Add a child*
+  accepts a slip from another school or teacher too (the parent's record there is made with the same sign-in).
+  Registering at a second school asks for the same password as the first. The menu under their name lists their
+  schools; the home page shows their children at other schools. Changing the password changes it everywhere.
+  A registrar who resets a parent's password at one school only resets that school's record: it opens with the new
+  password alone until the parent sets the same password again.
+- **Learners:** the LRN opens every school where the learner passes that school's own sign-in rule (LRN only,
+  birthdate or password). If one school asks for the birthdate, the form asks for it.
+- **One ID card:** when a learner's card from another school is scanned in a class where a learner with the same
+  LRN is enrolled, it is linked: from then on it works in that teacher's classes too (no need to print another card).
+  The card in class plus the same LRN in the class list is the proof.
+
 ## Teachers on their own (sign-up)
 
 A teacher whose school isn't on the system can create a free account at **signup.php** (linked from the home page
@@ -277,7 +295,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–010), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–011), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php), the current school (Workspace.php)
