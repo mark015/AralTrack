@@ -42,11 +42,129 @@
         body.set('session_id', sessionId);
         body.set('ajax', '1');
         return fetch(api, {method: 'POST', body: body, credentials: 'same-origin', headers: {Accept: 'application/json'}})
-            .then(function (response) { return response.json(); })
+            .then(function (response) {
+                return response.json().catch(function () {
+                    return {kind: 'error', accepted: false, message: 'Could not save. Reload the page (you may have been signed out).'};
+                });
+            })
             .catch(function () {
-                return {kind: 'error', accepted: false, message: 'Could not save. Check the connection, or reload the page (you may have been signed out).'};
+                return {offline: true}; // no connection: saved on this phone instead (see below)
             });
     }
+
+    // ---------------------------------------------------------------- without internet
+    // When the server can't be reached, scans and marks are saved on this phone (assets/offline-attendance.js)
+    // and sent when the connection is back. Cards are recognised from fingerprints of this class's cards.
+    var Off = window.SGPOffline;
+    var staffId = page.getAttribute('data-staff');
+    var offlineKey = 'srv-' + sessionId;
+    var roster = [];
+    try { roster = JSON.parse(page.getAttribute('data-roster') || '[]'); } catch (e) { roster = []; }
+    var lateAfter = parseInt(page.getAttribute('data-late-after'), 10) || 0;
+    var banner = document.getElementById('offline-banner');
+
+    function offlineSession() {
+        Off = Off || window.SGPOffline;
+        return Off ? Off.session(staffId, {
+            key: offlineKey,
+            classId: page.getAttribute('data-class'),
+            serverSessionId: parseInt(sessionId, 10),
+            startsAt: parseInt(page.getAttribute('data-starts'), 10)
+        }) : null;
+    }
+
+    function clock(seconds) {
+        return new Date(seconds * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+    }
+
+    function showOfflineBanner() {
+        if (!banner || !Off) {
+            return;
+        }
+        var n = Off.pending(staffId);
+        banner.classList.toggle('d-none', !n);
+        banner.textContent = n
+            ? 'No connection to the server. ' + n + ' record(s) are saved on this phone and will be sent automatically when the internet is back. Keep this page open, or open it again later.'
+            : '';
+    }
+
+    function offlineScan(code) {
+        if (!offlineSession()) {
+            showResult({kind: 'error', message: 'No connection, and this browser cannot save attendance offline.'});
+            beep(false);
+            return;
+        }
+        Off.learnerForCode(roster, code).then(function (learner) {
+            if (!learner) {
+                showResult({kind: 'error', message: 'No connection, and this card is not in this class (or it is not a learner ID).'});
+                beep(false);
+                return;
+            }
+            var row = document.querySelector('[data-student-row="' + learner.id + '"]');
+            var current = row ? row.getAttribute('data-status') : '';
+            if (current === 'present' || current === 'late') {
+                showResult({kind: 'info', message: learner.name + ' is already marked ' + current + '.'});
+                beep(false);
+                return;
+            }
+            var at = Math.floor(Date.now() / 1000);
+            var status = lateAfter && at > lateAfter ? 'late' : 'present';
+            Off.addEvent(staffId, offlineKey, {type: 'scan', studentId: learner.id, at: at}, status);
+            updateRow({id: learner.id, name: learner.name, status: status, label: status === 'late' ? 'Late' : 'Present', time: clock(at) + ' · saved offline', note: ''});
+            showResult({kind: status === 'late' ? 'warning' : 'success',
+                message: learner.name + ' — ' + (status === 'late' ? 'Late' : 'Present') + ' at ' + clock(at) + '. Saved on this phone; it is sent when the internet is back.'});
+            beep(true);
+            showOfflineBanner();
+            document.dispatchEvent(new CustomEvent('sgp-queued'));
+        });
+    }
+
+    function offlineMark(studentId, status, note) {
+        if (!offlineSession()) {
+            showResult({kind: 'error', message: 'No connection. Try again when the internet is back.'});
+            return;
+        }
+        var at = Math.floor(Date.now() / 1000);
+        Off.addEvent(staffId, offlineKey, {type: 'mark', studentId: parseInt(studentId, 10), status: status, note: note, at: at}, status);
+        var learner = roster.filter(function (l) { return String(l.id) === String(studentId); })[0];
+        var labels = {present: 'Present', late: 'Late', absent: 'Absent', excused: 'Excused'};
+        updateRow({id: studentId, name: learner ? learner.name : '', status: status, label: labels[status] || status, time: 'by teacher · saved offline', note: note});
+        showResult({kind: 'info', message: (learner ? learner.name : 'Learner') + ' marked ' + (labels[status] || status).toLowerCase() + '. Saved on this phone; it is sent when the internet is back.'});
+        showOfflineBanner();
+        document.dispatchEvent(new CustomEvent('sgp-queued'));
+    }
+
+    // Finishing without internet: remembered on this phone and done when it is sent.
+    var finishForm = document.getElementById('finish-form');
+    if (finishForm) {
+        finishForm.addEventListener('submit', function (event) {
+            if (event.defaultPrevented) {
+                return; // the teacher pressed Cancel
+            }
+            event.preventDefault();
+            fetch(finishForm.action, {method: 'POST', body: new FormData(finishForm), credentials: 'same-origin', redirect: 'follow'})
+                .then(function () { location.reload(); })
+                .catch(function () {
+                    if (!offlineSession()) {
+                        return;
+                    }
+                    Off.finish(staffId, offlineKey);
+                    showResult({kind: 'warning', message: 'Finished on this phone. Learners not marked will be marked absent when it is sent, once the internet is back.'});
+                    finishForm.querySelector('button').disabled = true;
+                    showOfflineBanner();
+                    document.dispatchEvent(new CustomEvent('sgp-queued'));
+                });
+        });
+    }
+
+    // Once the saved records are sent, show the page as the server has it.
+    document.addEventListener('sgp-synced', function (event) {
+        var mine = (event.detail.results || []).some(function (r) { return r.key === offlineKey && r.ok; });
+        if (mine) {
+            location.reload();
+        }
+    });
+    window.addEventListener('load', showOfflineBanner);
 
     // A short beep: high for a saved scan, low for a problem. Optional; ignored if the browser blocks sound.
     function beep(ok) {
@@ -85,6 +203,7 @@
         if (!row) {
             return;
         }
+        row.setAttribute('data-status', student.status || '');
         var cell = row.querySelector('.js-status');
         var style = STATUS_STYLE[student.status] || ['text-bg-light border', 'circle'];
         var badge = document.createElement('span');
@@ -142,6 +261,10 @@
         lastCode = code;
         lastTime = now;
         send({action: 'scan', code: code}).then(function (data) {
+            if (data.offline) {
+                offlineScan(code);
+                return;
+            }
             handle(data);
             beep(Boolean(data.accepted));
         });
@@ -274,7 +397,13 @@
             event.preventDefault();
             var data = new FormData(form);
             send({action: 'mark', student_id: data.get('student_id'), status: data.get('status') || '', note: data.get('note') || ''})
-                .then(handle);
+                .then(function (result) {
+                    if (result.offline) {
+                        offlineMark(data.get('student_id'), data.get('status') || '', data.get('note') || '');
+                    } else {
+                        handle(result);
+                    }
+                });
         });
     });
 })();

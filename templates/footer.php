@@ -19,6 +19,9 @@
 </footer>
 <script src="<?= e(asset('assets/vendor/bootstrap.bundle.min.js')) ?>"></script>
 <script src="<?= e(asset('assets/theme.js')) ?>"></script>
+<?php if (current_staff() || str_ends_with(str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? ''), '/staff/login.php')): ?>
+    <script src="<?= e(asset('assets/offline-attendance.js')) ?>"></script>
+<?php endif; ?>
 <?php if (is_file(APP_ROOT . '/public/sw.js')): ?>
     <script>
         // Installable app: register the service worker, and show "Install app" when the browser offers it.

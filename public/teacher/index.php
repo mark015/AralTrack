@@ -77,6 +77,57 @@ require APP_ROOT . '/templates/header.php';
     <a class="btn btn-outline-primary" href="<?= e(url('teacher/schedule.php')) ?>"><i class="bi bi-calendar-week me-1"></i>My schedule</a>
 </div>
 
+<?php if ($attendanceOn && $classes): ?>
+    <div class="card mb-4 border-0 offline-card" id="offline-card">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div class="icon-bubble teal"><i class="bi bi-wifi-off" aria-hidden="true"></i></div>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">Offline attendance</div>
+                <div class="small text-secondary" id="offline-status">Saving your class lists on this device…</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="offline-refresh"><i class="bi bi-arrow-repeat me-1"></i>Update lists</button>
+                <a class="btn btn-sm btn-primary" href="<?= e(url('offline-attendance.html')) ?>"><i class="bi bi-qr-code-scan me-1"></i>Open offline attendance</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Shows what this device has saved for offline attendance (assets/offline-attendance.js).
+        document.addEventListener('DOMContentLoaded', function () {
+            var Off = window.SGPOffline;
+            var status = document.getElementById('offline-status');
+            var staff = document.querySelector('meta[name="sgp-staff-id"]').content;
+            var api = document.querySelector('meta[name="sgp-offline-api"]').content;
+            if (!Off || !window.localStorage) {
+                status.textContent = 'This browser cannot save attendance for offline use.';
+                return;
+            }
+            function show() {
+                var pack = Off.pack(staff);
+                var waiting = Off.pending(staff);
+                if (!pack) {
+                    status.textContent = navigator.onLine ? 'Saving your class lists on this device…' : 'No class lists saved on this device yet. Connect to the internet once.';
+                    return;
+                }
+                var learners = pack.classes.reduce(function (n, c) { return n + c.learners.length; }, 0);
+                status.textContent = 'Ready without internet on this device: ' + pack.classes.length + ' class(es), ' + learners + ' learners · saved '
+                    + new Date(pack.savedAt * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})
+                    + (waiting ? ' · ' + waiting + ' record(s) waiting to be sent' : '');
+            }
+            document.addEventListener('sgp-pack', show);
+            document.addEventListener('sgp-synced', show);
+            document.getElementById('offline-refresh').addEventListener('click', function () {
+                status.textContent = 'Updating…';
+                Off.refreshPack(api, true).then(show);
+            });
+            show();
+            if (navigator.onLine) {
+                Off.refreshPack(api, false).then(show);
+            }
+        });
+    </script>
+<?php endif; ?>
+
 <?php if ($todaySlots): ?>
     <div class="card mb-4">
         <div class="card-body">

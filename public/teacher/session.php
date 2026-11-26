@@ -24,6 +24,12 @@ $roster = section_roster((int) $class['section_id']);
 $marks = Attendance::marks($sessionId);
 $counts = Attendance::counts($session);
 $isOpen = $session['finished_at'] === null;
+// For scanning without internet: each learner's card as a SHA-256 fingerprint (the card code itself stays on the server).
+$offlineRoster = array_map(static fn ($s) => [
+    'id' => (int) $s['id'],
+    'name' => student_name($s),
+    'hash' => ($t = db_value('SELECT qr_token FROM students WHERE id = ?', [$s['id']])) ? hash('sha256', (string) $t) : null,
+], $roster);
 
 $title = 'Attendance · ' . $class['subject_name'];
 require APP_ROOT . '/templates/header.php';
@@ -41,7 +47,11 @@ require APP_ROOT . '/templates/header.php';
     · Late after <?= e(date('g:i A', Attendance::lateAfter($session))) ?>
 </p>
 
-<div id="attendance-page" data-api="<?= e(url('teacher/session-api.php')) ?>" data-session="<?= $sessionId ?>" data-csrf="<?= e(csrf_token()) ?>">
+<div id="attendance-page" data-api="<?= e(url('teacher/session-api.php')) ?>" data-session="<?= $sessionId ?>" data-csrf="<?= e(csrf_token()) ?>"
+     data-class="<?= (int) $class['id'] ?>" data-staff="<?= (int) $staff['id'] ?>" data-open="<?= $isOpen ? '1' : '0' ?>"
+     data-starts="<?= strtotime($session['starts_at']) ?>" data-late-after="<?= Attendance::lateAfter($session) ?>"
+     data-roster="<?= e(json_encode($offlineRoster, JSON_UNESCAPED_UNICODE)) ?>">
+    <div id="offline-banner" class="alert alert-warning d-none" role="status"></div>
     <?php if ($isOpen): ?>
         <div class="row g-3 mb-4">
             <div class="col-lg-5">
@@ -62,7 +72,7 @@ require APP_ROOT . '/templates/header.php';
             <div class="col-lg-7">
                 <div id="scan-result" class="scan-result alert alert-secondary mb-3" role="status" aria-live="polite"><i class="bi bi-qr-code-scan" aria-hidden="true"></i>Ready. Scan a learner's QR card.</div>
                 <?php require APP_ROOT . '/templates/attendance-counts.php'; ?>
-                <form method="post" action="<?= e(url($here)) ?>" class="mt-3"
+                <form method="post" action="<?= e(url($here)) ?>" class="mt-3" id="finish-form"
                       onsubmit="return confirm('Finish attendance? Learners not marked yet will be marked absent, and their parents will be notified.')">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="finish">
@@ -87,7 +97,7 @@ require APP_ROOT . '/templates/header.php';
             <?php foreach ($roster as $i => $student):
                 $sid = (int) $student['id'];
                 $mark = $marks[$sid] ?? null; ?>
-                <tr data-student-row="<?= $sid ?>">
+                <tr data-student-row="<?= $sid ?>" data-status="<?= e($mark['status'] ?? '') ?>">
                     <td class="text-secondary small"><?= $i + 1 ?></td>
                     <td><?= e(student_name($student)) ?><div class="lrn small text-secondary"><?= e($student['lrn']) ?></div></td>
                     <td class="js-status"><?= attendance_badge($mark['status'] ?? null) ?></td>

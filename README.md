@@ -127,6 +127,16 @@ Sign in at the home page. The learner home shows today's classes and attendance,
 
 **How learners sign in** (Super Admin → Control panel): LRN only (default), LRN + birthdate, or LRN + password (each learner activates their account once with their birthdate; the registrar can reset it).
 
+## Offline attendance (no internet)
+
+Teachers can take QR attendance without internet. Everything is sent to the server when the connection is back.
+
+- **While online**, opening **My classes** saves the teacher's class lists for this semester on the phone (the "Offline attendance" box shows what is saved; *Update lists* refreshes it). A card is saved only as a SHA-256 fingerprint, never the card code itself. The lists are deleted from the phone when the teacher signs out.
+- **Internet drops during class:** the attendance page keeps working. Scans and hand marks are saved on the phone with their exact time (so Late is still right), the page says "saved on this phone", and they are sent automatically when the connection returns. Finish also works.
+- **No internet at all:** open **offline-attendance.html** (the *Open offline attendance* button, or the link on the "You're offline" page). Choose the class, confirm the start time, then scan with the camera or a USB scanner, mark by hand, and finish. It works after the phone has visited the portal once while online.
+- **Sending:** automatic when online (or press *Send now*). Each offline class has its own id, so sending twice never makes duplicates; parents get their late/absent notifications when it arrives. If the teacher was signed out meanwhile, the records stay on the phone until they sign in again.
+- Not offline: signing in for the first time on a phone, grades, messages and requests.
+
 ## Installable app and dark mode
 
 - The portal can be **installed like an app** on phones and computers (Chrome or Edge: *Install app* in the footer, or the browser menu → *Install*). It opens full screen with the school crest. Only styles, scripts and icons are kept on the device; pages with grades or names always come from the server, and an offline page is shown without a connection. Installing needs `https://` (or `http://localhost` on the server itself).
@@ -205,7 +215,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–007), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–008), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php)
@@ -222,6 +232,7 @@ public/               the pages
   print/                      SF9, SF10, certificates
   messages.php, requests.php, news.php, privacy.php, file.php
   manifest.webmanifest, sw.js, offline.html   installable app
+  offline-attendance.html     attendance without internet (assets/offline-attendance.js, offline-page.js)
 ```
 
 Settings in `config/config.php`: `grade_levels` (11 and 12) and `strands`; grades `grade_min` 60, `grade_max` 100, `passing_grade` 75; `late_after_minutes` (15); sign-in lockout and inactivity timeouts. Most school details are set in the portal under Setup → Settings.

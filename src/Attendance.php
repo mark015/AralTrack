@@ -297,6 +297,78 @@ final class Attendance
         );
     }
 
+    // ------------------------------------------------------------ offline attendance (teacher's phone without internet)
+
+    /**
+     * The session a phone recorded offline: the one it already belongs to (same client id, or the session id
+     * it was started from), today's session still open for the class, or a new one with the phone's start time.
+     */
+    public static function sessionForOffline(array $class, ?int $serverSessionId, string $clientUuid, string $date, string $time, int $userId): array
+    {
+        if ($serverSessionId) {
+            $session = self::session($serverSessionId);
+            if (!$session || (int) $session['class_assignment_id'] !== (int) $class['id']) {
+                throw new UserFacingException('That attendance session does not belong to this class.');
+            }
+            return $session;
+        }
+        if ($id = db_value('SELECT id FROM class_sessions WHERE client_uuid = ?', [$clientUuid])) {
+            return self::session((int) $id);
+        }
+        $open = db_one(
+            'SELECT id FROM class_sessions WHERE class_assignment_id = ? AND session_date = ? AND finished_at IS NULL ORDER BY id DESC LIMIT 1',
+            [$class['id'], $date]
+        );
+        if ($open) {
+            db_exec('UPDATE class_sessions SET client_uuid = COALESCE(client_uuid, ?) WHERE id = ?', [$clientUuid, $open['id']]);
+            return self::session((int) $open['id']);
+        }
+        db_exec(
+            'INSERT INTO class_sessions (class_assignment_id, session_date, starts_at, opened_by, client_uuid) VALUES (?, ?, ?, ?, ?)',
+            [$class['id'], $date, "{$date} {$time}", $userId, $clientUuid]
+        );
+        return self::session((int) db()->lastInsertId());
+    }
+
+    /**
+     * A card scanned on a phone while offline, at the phone's time. Present or Late is worked out from that
+     * time, like a live scan. A learner already marked present or late keeps that mark.
+     * @return string saved | late | duplicate | not_in_class | finished
+     */
+    public static function offlineScan(array $session, int $studentId, int $scannedAt, int $userId): string
+    {
+        $student = db_one(
+            'SELECT st.* FROM students st JOIN enrollments e ON e.student_id = st.id WHERE st.id = ? AND e.section_id = ?',
+            [$studentId, $session['class']['section_id']]
+        );
+        if (!$student) {
+            return 'not_in_class';
+        }
+        $current = self::markRow((int) $session['id'], $studentId);
+        if ($current && in_array($current['status'], ['present', 'late'], true)) {
+            return 'duplicate';
+        }
+        if ($current && $session['finished_at'] !== null) {
+            return 'finished'; // already marked absent/excused after finishing: a teacher corrects that by hand
+        }
+        $status = $scannedAt > self::lateAfter($session) ? 'late' : 'present';
+        db_exec(
+            'INSERT INTO session_attendance (session_id, student_id, status, source, marked_at, note, recorded_by)
+             VALUES (?, ?, ?, ?, ?, NULL, ?)
+             ON DUPLICATE KEY UPDATE status = VALUES(status), source = VALUES(source), marked_at = VALUES(marked_at),
+                                     note = NULL, recorded_by = VALUES(recorded_by)',
+            [$session['id'], $studentId, $status, 'scan', date('Y-m-d H:i:s', $scannedAt), $userId]
+        );
+        db_exec(
+            'INSERT INTO scan_log (session_id, user_id, code, student_id, result) VALUES (?, ?, ?, ?, ?)',
+            [$session['id'], $userId, 'offline', $studentId, 'ok']
+        );
+        if ($status === 'late') {
+            Notifications::late($student, $session, $scannedAt);
+        }
+        return $status === 'late' ? 'late' : 'saved';
+    }
+
     private static function markRow(int $sessionId, int $studentId): ?array
     {
         return db_one('SELECT * FROM session_attendance WHERE session_id = ? AND student_id = ?', [$sessionId, $studentId]);

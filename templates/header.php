@@ -51,6 +51,11 @@ $flashes = take_flashes();
     <meta name="theme-color" content="#102452">
     <title><?= e(($title ?? '') !== '' ? $title . ' · ' . config('app_name') : config('app_name')) ?></title>
     <link rel="icon" href="<?= e(favicon_uri()) ?>">
+    <?php if ($navStaff): // read by assets/offline-attendance.js (offline attendance on teachers' phones) ?>
+        <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
+        <meta name="sgp-staff-id" content="<?= (int) $navStaff['id'] ?>">
+        <meta name="sgp-offline-api" content="<?= e(url('teacher/offline-api.php')) ?>">
+    <?php endif; ?>
     <?php if (is_file(APP_ROOT . '/public/manifest.webmanifest')): ?>
         <link rel="manifest" href="<?= e(url('manifest.webmanifest')) ?>">
         <link rel="apple-touch-icon" href="<?= e(url('assets/icons/apple-touch-icon.png')) ?>">
