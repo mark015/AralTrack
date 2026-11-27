@@ -45,6 +45,7 @@ if (is_post()) {
                         [$there, $me['full_name'], $me['login'], $me['password_hash'], date('Y-m-d H:i:s')]
                     );
                     $record = db_one('SELECT * FROM parents WHERE id = ?', [(int) db()->lastInsertId()]);
+                    Privacy::record('parent', (int) $record['id'], $there, Workspace::within($there, static fn (): int => Privacy::version()));
                 }
                 db_exec(
                     'INSERT IGNORE INTO parent_students (parent_id, student_id, relationship) VALUES (?, ?, ?)',

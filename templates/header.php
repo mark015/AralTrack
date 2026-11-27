@@ -167,6 +167,7 @@ $flashes = take_flashes();
                             <?php endif; ?>
                             <?php if ($navParent): ?>
                                 <li><a class="dropdown-item" href="<?= e(url('parent/link.php')) ?>"><i class="bi bi-person-plus"></i>Add a child</a></li>
+                                <li><a class="dropdown-item" href="<?= e(url('parent/my-data.php')) ?>"><i class="bi bi-shield-check"></i>My data</a></li>
                             <?php endif; ?>
                             <?php if ($navUser['password']): ?>
                                 <li><a class="dropdown-item" href="<?= e(url($navUser['password'])) ?>"><i class="bi bi-key"></i>Change password</a></li>

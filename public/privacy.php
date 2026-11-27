@@ -5,6 +5,8 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 // Before sign-in the school isn't known yet: each school using the system is responsible for its own learners' data.
 $school = Workspace::known() ? setting('school_name') : 'Your school';
 $contact = setting('dpo_contact') ?: 'the school\'s registrar or principal';
+$dpo = trim((string) setting('dpo_name'));
+$extra = Workspace::known() ? trim((string) setting('privacy_extra')) : '';
 $title = 'Privacy notice';
 require APP_ROOT . '/templates/header.php';
 ?>
@@ -40,12 +42,25 @@ require APP_ROOT . '/templates/header.php';
                 <h2 class="h5 mt-4">How it is protected</h2>
                 <p>Passwords are stored encrypted, sign-in is locked after repeated failed tries, every page checks who is allowed to see it, and uploaded files are kept outside the public website.</p>
 
+                <h2 class="h5 mt-4">Who keeps it</h2>
+                <p><?= e($school) ?> decides what is kept and why. <?= e(config('app_name')) ?> runs this portal for the school and keeps the data on the
+                    school's behalf. It does not use it for anything else, and each school's data is kept apart from every other school's.</p>
+
                 <h2 class="h5 mt-4">How long</h2>
-                <p>Records are kept as long as DepEd requires school records to be kept. Parent accounts can be removed on request.</p>
+                <p>Records are kept as long as DepEd requires school records to be kept. A parent can delete their account at any time
+                    (My data, in the menu under their name). When a school stops using the portal, its data is deleted at its request.</p>
 
                 <h2 class="h5 mt-4">Your rights</h2>
                 <p>You may ask to see, correct, or remove your information, and you may withdraw your consent for your parent account.
-                    Contact <?= e($contact) ?>. You may also file a complaint with the National Privacy Commission.</p>
+                    Parents can download their own data under My data.
+                    Contact <?= $dpo !== '' ? 'the Data Protection Officer, ' . e($dpo) . ', at ' : '' ?><?= e($contact) ?>. You may also file a complaint with the National Privacy Commission.</p>
+                <?php if ($extra !== ''): ?>
+                    <h2 class="h5 mt-4">More from <?= e($school) ?></h2>
+                    <p style="white-space: pre-line"><?= e($extra) ?></p>
+                <?php endif; ?>
+                <?php if (Workspace::known()): ?>
+                    <p class="small text-secondary mt-4 mb-0">Version <?= Privacy::version() ?><?= setting('privacy_updated') ? ' · updated ' . e(date('F j, Y', strtotime((string) setting('privacy_updated')))) : '' ?></p>
+                <?php endif; ?>
             </div>
         </div>
     </div>

@@ -98,6 +98,21 @@ async function savedCopy(url) {
     return new Response(html, {headers: {'Content-Type': 'text/html; charset=utf-8'}});
 }
 
+/**
+ * Where a teacher's page goes when there is no internet: the offline attendance page, opened on the class.
+ * always: the live attendance pages (they can't work offline); otherwise only when no saved copy exists.
+ */
+function attendanceFor(url) {
+    const page = url.pathname.slice(new URL(scope).pathname.length);
+    const id = /^\d+$/.test(url.searchParams.get('id') || '') ? url.searchParams.get('id') : '';
+    const to = (query) => new URL('offline-attendance.html' + query, scope).href;
+    if (page === 'teacher/session.php') return {always: true, url: to(id ? '?session=' + id : '')};
+    if (page === 'teacher/attendance.php') return {always: true, url: to(id ? '?class=' + id : '')};
+    if (['teacher/class.php', 'teacher/class-record.php', 'teacher/posts.php'].includes(page)) return {always: false, url: to(id ? '?class=' + id : '')};
+    if (page === 'teacher/index.php' || page === 'teacher/') return {always: false, url: to('')};
+    return null;
+}
+
 self.addEventListener('fetch', (event) => {
     const request = event.request;
     const url = new URL(request.url);
@@ -121,9 +136,18 @@ self.addEventListener('fetch', (event) => {
                     else if (response.headers.get('X-Offline-Save')) event.waitUntil(keepPage(request.url, response.clone()).catch(() => {}));
                     return response;
                 })
-                .catch(async () => (isAttendance ? await caches.match(ATTENDANCE, {ignoreSearch: true}) : null)
-                    || (await savedCopy(request.url).catch(() => null))
-                    || caches.match(OFFLINE))
+                .catch(async () => {
+                    if (isAttendance) {
+                        return (await caches.match(ATTENDANCE, {ignoreSearch: true})) || caches.match(OFFLINE);
+                    }
+                    // A teacher's attendance page without internet: the offline attendance page, on that class
+                    const offline = attendanceFor(url);
+                    if (offline && offline.always) return Response.redirect(offline.url, 302);
+                    const saved = await savedCopy(request.url).catch(() => null);
+                    if (saved) return saved;
+                    if (offline) return Response.redirect(offline.url, 302);
+                    return caches.match(OFFLINE);
+                })
         );
         return;
     }

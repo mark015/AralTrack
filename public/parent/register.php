@@ -91,6 +91,7 @@ if (is_post()) {
             $errors[] = 'An account with this mobile number or email already exists at this school. Sign in, then use "Add a child".';
         }
         if (!$errors) {
+            Privacy::record('parent', $parentId, ws()); // agreed to the privacy notice on this form
             login_parent(['id' => $parentId, 'full_name' => $form['full_name'], 'workspace_id' => ws()]);
             // Together with the same parent's records at other schools (same password)
             $mine = array_filter(db_all('SELECT * FROM parents WHERE login = ? AND is_active = 1', [$login]), static fn ($r) => password_verify($password, $r['password_hash']));

@@ -40,6 +40,7 @@ final class Signup
             $pdo->rollBack();
             throw $e;
         }
+        Privacy::record('staff', $userId, $workspaceId, 1); // ticked "I may keep my learners' records here … privacy notice"
         platform_log('signup', "{$name} ({$email}) signed up as a teacher at {$schoolName}", $workspaceId);
         return db_one('SELECT * FROM users WHERE id = ?', [$userId]);
     }

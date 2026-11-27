@@ -90,6 +90,30 @@ if (is_post()) {
         redirect($here);
     }
 
+    if ($action === 'export') {
+        platform_log('export', "Downloaded all data of {$workspace['name']}", $id);
+        Privacy::sendExport($id);
+    }
+
+    if ($action === 'delete_data') {
+        $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
+        $ownerRow = db_one('SELECT password_hash FROM platform_owners WHERE id = ?', [$owner['id']]);
+        if (!password_verify($password, (string) $ownerRow['password_hash'])) {
+            flash('danger', 'Your password is not correct.');
+        } elseif (trim(post('confirm_name')) !== $workspace['name']) {
+            flash('danger', 'Type the name of the school exactly as shown to confirm.');
+        } else {
+            try {
+                $count = Privacy::deleteWorkspace($id);
+                platform_log('deleted', "Deleted all data of {$workspace['name']} ({$count} records); payments kept", $id);
+                flash('success', "All data of {$workspace['name']} was deleted ({$count} records and its files). Its payments are kept for your accounts.");
+            } catch (UserFacingException $e) {
+                flash('danger', $e->getMessage());
+            }
+        }
+        redirect($here);
+    }
+
     if ($action === 'open') {
         $account = $adminAccount(post_int('user_id'));
         if (!$account || !$account['is_active']) {
@@ -126,6 +150,15 @@ $title = $workspace['name'];
 require APP_ROOT . '/templates/header.php';
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="<?= e(url('platform/index.php')) ?>">Schools</a></li><li class="breadcrumb-item active" aria-current="page"><?= e($workspace['name']) ?></li></ol></nav>
+<?php if ($workspace['deletion_requested_at'] && $workspace['status'] !== 'deleted'): ?>
+    <div class="alert alert-warning" role="status"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+        <div>This school asked to close its account and delete its data on <?= e(date('F j, Y', strtotime($workspace['deletion_requested_at']))) ?>.
+            Contact them, pause the school, then delete its data below.</div></div>
+<?php endif; ?>
+<?php if ($workspace['status'] === 'deleted'): ?>
+    <div class="alert alert-secondary" role="status"><i class="bi bi-trash3" aria-hidden="true"></i>
+        <div>All data of this school was deleted on <?= e(date('F j, Y', strtotime((string) $workspace['deleted_at']))) ?>. Only its name, contact and payments are kept.</div></div>
+<?php endif; ?>
 <div class="page-head">
     <div>
         <h1 class="h3"><?= e($workspace['name']) ?>
@@ -244,6 +277,34 @@ require APP_ROOT . '/templates/header.php';
     </div>
 
     <div class="col-lg-5">
+        <?php if ($workspace['status'] !== 'deleted'): ?>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="h5">Data</h2>
+                <p class="small text-secondary">All of this school's records (CSV) and uploaded files, in one ZIP. Passwords and card codes are left out. The download is logged.</p>
+                <form method="post" action="<?= e(url($here)) ?>" class="mb-3">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $id ?>">
+                    <input type="hidden" name="action" value="export">
+                    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-download me-1" aria-hidden="true"></i>Download all data</button>
+                </form>
+                <?php if ($workspace['status'] === 'suspended' && $id !== 1): ?>
+                    <h3 class="h6 text-danger">Delete all data</h3>
+                    <p class="small text-secondary">For good: learners, grades, attendance, parents, staff, messages and files. Only the name, contact and payments stay. This can't be undone.</p>
+                    <form method="post" action="<?= e(url($here)) ?>" class="row g-2">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="id" value="<?= (int) $id ?>">
+                        <input type="hidden" name="action" value="delete_data">
+                        <div class="col-12"><label class="form-label small" for="confirm_name">Type the school's name: <strong><?= e($workspace['name']) ?></strong></label><input class="form-control form-control-sm" id="confirm_name" name="confirm_name" autocomplete="off" required></div>
+                        <div class="col-12"><label class="form-label small" for="owner-password">Your password</label><input class="form-control form-control-sm" type="password" id="owner-password" name="password" autocomplete="current-password" required></div>
+                        <div class="col-12"><button class="btn btn-sm btn-danger" onclick="return confirm('Delete all data of this school for good?')">Delete all data</button></div>
+                    </form>
+                <?php elseif ($id !== 1): ?>
+                    <p class="small text-secondary mb-0">To delete all of its data, pause the school first.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="card shadow-sm mb-4">
             <div class="card-body">
                 <?php if ($workspace['status'] === 'active'): ?>

@@ -124,7 +124,9 @@ require APP_ROOT . '/templates/header.php';
             <tr>
                 <td>
                     <a class="fw-semibold" href="<?= e(url('platform/workspace.php?id=' . (int) $w['id'])) ?>"><?= e($w['name']) ?></a>
-                    <?php if ($w['status'] !== 'active'): ?><span class="badge text-bg-danger ms-1">Paused</span><?php endif; ?>
+                    <?php if ($w['status'] === 'deleted'): ?><span class="badge text-bg-secondary ms-1">Data deleted</span>
+                    <?php elseif ($w['status'] !== 'active'): ?><span class="badge text-bg-danger ms-1">Paused</span><?php endif; ?>
+                    <?php if ($w['deletion_requested_at'] && $w['status'] !== 'deleted'): ?><span class="badge text-bg-warning ms-1">Asked to close</span><?php endif; ?>
                     <?php if ($w['contact_email'] || $w['contact_name']): ?>
                         <div class="small text-secondary"><?= e(trim(($w['contact_name'] ?? '') . ' ' . ($w['contact_email'] ?? ''))) ?></div>
                     <?php endif; ?>

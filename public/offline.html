@@ -19,6 +19,9 @@
         }
         .teachers { margin: 22px 0 0; font-size: .92rem; }
         .teachers a { display: inline-block; margin-top: 8px; font-weight: 600; color: #2a4fd6; }
+        .attendance-first { margin: 0 0 20px; }
+        .attendance-first a { display: block; padding: 12px 16px; border-radius: 10px; background: #2a4fd6; color: #fff !important; font-weight: 600; text-decoration: none; }
+        .attendance-first small { display: block; margin-top: 8px; color: #667085; }
         .saved { text-align: left; margin: 0 0 20px; padding: 0; list-style: none; border-top: 1px solid #e4e8f1; }
         .saved li { border-bottom: 1px solid #e4e8f1; }
         .saved a { display: flex; justify-content: space-between; gap: 12px; padding: 10px 4px; color: #2a4fd6; font-weight: 600; text-decoration: none; }
@@ -33,6 +36,10 @@
 <div class="card">
     <svg width="64" height="64" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2 34.5 7.2v10.6c0 9.6-6.1 16.9-14.5 20.2C11.6 34.7 5.5 27.4 5.5 17.8V7.2z" fill="#f5b82e"/><path d="M20 5.6 31.3 9.6v8.3c0 7.6-4.6 13.5-11.3 16.6-6.7-3.1-11.3-9-11.3-16.6V9.6z" fill="#102452"/><path d="M11.5 16 20 12.2 28.5 16 20 19.8z" fill="#f5b82e"/><path d="M14.8 18.4v4.3c0 1.7 2.3 3 5.2 3s5.2-1.3 5.2-3v-4.3L20 20.7z" fill="#fff"/><path d="M28.5 16v5.2" stroke="#f5b82e" stroke-width="1.4" stroke-linecap="round"/><circle cx="28.5" cy="22" r="1.2" fill="#f5b82e"/></svg>
     <h1>You're offline</h1>
+    <div class="attendance-first" id="attendance-first" hidden>
+        <a id="attendance-main" href="offline-attendance.html">Take attendance offline</a>
+        <small>Your class lists are saved on this phone. The attendance is sent when you're back online.</small>
+    </div>
     <p id="message">The portal needs an internet or school network connection to show grades and attendance. Check your connection and try again.</p>
     <ul class="saved" id="saved" hidden></ul>
     <button type="button" onclick="location.reload()">Try again</button>
@@ -42,12 +49,21 @@
 <script>
     // This page is shown in place of any page that isn't saved, so links are built from the app's address.
     // With "Offline copy" on (assets/offline-pages.js), it lists the pages saved on this device.
+    // A teacher whose class lists are saved on this phone: taking attendance comes first
+    try {
+        if (Object.keys(localStorage).some(function (k) { return k.indexOf('sgp-offline:pack:') === 0; })) {
+            document.getElementById('attendance-first').hidden = false;
+            document.querySelector('.teachers').hidden = true;
+        }
+    } catch (e) { /* storage blocked */ }
+
     (async function () {
         try {
             var registration = await navigator.serviceWorker.getRegistration();
             if (!registration) return;
             var scope = registration.scope;
             document.getElementById('attendance').href = scope + 'offline-attendance.html';
+            document.getElementById('attendance-main').href = scope + 'offline-attendance.html';
             window.addEventListener('online', function () { location.reload(); });
             if (!(await caches.has('sgp-pages-v1'))) return;
             var cache = await caches.open('sgp-pages-v1');

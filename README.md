@@ -203,6 +203,25 @@ before became workspace 1.
   work even before the webhook is set. On a test computer with debug on and no key, the Billing page offers a
   *test payment* button instead.
 
+## Privacy and data (Data Privacy Act, RA 10173)
+
+- **Privacy notice per school** (Control → *Privacy & data*, Super Admin; Setup for a teacher on their own): the
+  Data Protection Officer and how to contact them, and anything else the school wants parents to know. They appear on
+  the privacy notice (`privacy.php`), with its version and date.
+- **Consent records:** every acceptance is recorded with the notice's version (`consents` table). Parents accept when
+  they register; parents made by the registrar accept at their first sign-in. When the school changes the notice and
+  ticks *ask every parent to accept again*, parents accept the new version at their next sign-in. The page shows how
+  many accepted and downloads all consent records (CSV).
+- **Download all our data:** one ZIP with every record as CSV (with a README explaining the files) and every uploaded
+  file. Passwords, parent link codes and QR card codes are left out. Asks for the Super Admin's password; logged.
+  Works even when the school's subscription has ended.
+- **Close our account:** the school asks to close its account; the platform console shows "Asked to close". The
+  owner downloads the data if needed, pauses the school, then **deletes all of its data** on the school's console
+  page (type the school's name and the owner password). Every record and uploaded file goes; only the school's
+  name, contact and payments stay (accounting). The first school can't be deleted.
+- **Parents:** *My data* (menu under their name) downloads their own data (JSON) and deletes their account at that
+  school (name, sign-in and links removed; messages and letters stay with the school as "Deleted parent").
+
 ## Inviting staff, and a teacher joining a school
 
 - **Invite by email** (Staff accounts → *Invite by email*): the person gets a link (emailed when email is set up,
@@ -331,7 +350,7 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–013), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–014), install.php, migrate.php, demo data
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php), the current school (Workspace.php)
@@ -346,9 +365,9 @@ public/               the pages
   join.php                    accepting a school's invitation (and bringing your own classes)
   staff/                      staff sign-in, email code, forgot/reset password, password change
   teacher/                    setup guide (teachers on their own), classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
-  parent/                     parent sign-up, sign-in, dashboard, child page, notifications, excuse letters
+  parent/                     parent sign-up, sign-in, privacy notice, my data, dashboard, child page, notifications, excuse letters
   admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles
-  superadmin/                 control panel, accounts & sign-in, one person's access, activity log
+  superadmin/                 control panel, accounts & sign-in, one person's access, activity log, privacy & data
   platform/                   platform owner console: schools, demo requests, billing, backups
   print/                      SF9, SF10, certificates
   messages.php, requests.php, news.php, privacy.php, file.php

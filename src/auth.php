@@ -143,6 +143,10 @@ function require_parent(): array
         flash('warning', 'Please choose a new password before continuing.');
         redirect('parent/password.php');
     }
+    // The school's privacy notice: the first time, and again when the school changed it and asked again
+    if (!str_ends_with($script, '/parent/consent.php') && !str_ends_with($script, '/parent/my-data.php') && Privacy::parentMustAccept((int) $parent['id'])) {
+        redirect('parent/consent.php');
+    }
     return $_SESSION['parent'];
 }
 

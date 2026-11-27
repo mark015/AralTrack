@@ -26,7 +26,7 @@ final class Billing
     ];
 
     /** While read-only, staff may still do these (sign out, change their password, pay). */
-    private const ALWAYS_ALLOWED = ['billing.php', 'staff/logout.php', 'staff/password.php'];
+    private const ALWAYS_ALLOWED = ['billing.php', 'staff/logout.php', 'staff/password.php', 'superadmin/privacy.php']; // a school can always take its data
 
     private static ?array $settings = null;
 

@@ -65,6 +65,7 @@ final class Navigation
                 ['Billing', 'credit-card', 'billing.php'],
                 ['Learner & parent sign-in', 'person-lock', 'superadmin/accounts.php'],
                 ['Control panel', 'toggles', 'superadmin/index.php'],
+                ['Privacy & data', 'shield-check', 'superadmin/privacy.php'],
             ]],
         ];
     }
@@ -127,6 +128,7 @@ final class Navigation
                     ['Control panel', 'toggles', 'superadmin/index.php'],
                     ['Accounts & sign-in', 'person-lock', 'superadmin/accounts.php'],
                     ['Activity log', 'journal-text', 'superadmin/activity.php'],
+                    ['Privacy & data', 'shield-check', 'superadmin/privacy.php'],
                     ...$setup,
                 ]],
                 $teachingMenu,

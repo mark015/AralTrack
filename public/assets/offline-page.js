@@ -427,6 +427,19 @@
         });
     }
 
+    // Opened from a class's attendance page while offline (sw.js sends ?class=… or ?session=…): open that class
+    (function () {
+        var params = new URLSearchParams(location.search);
+        if (!params.has('class') && !params.has('session')) return;
+        var target = null;
+        if (pack && params.get('class')) {
+            target = Off.classOf(pack, params.get('class'));
+        } else if (pack && params.get('session')) {
+            target = (pack.classes || []).filter(function (c) { return c.openSession && String(c.openSession.id) === params.get('session'); })[0] || null;
+        }
+        history.replaceState(null, '', location.pathname + (target ? '#class-' + target.id : ''));
+    })();
+
     window.addEventListener('hashchange', render);
     render();
 })();
