@@ -21,7 +21,7 @@ require APP_ROOT . '/templates/header.php';
 </div>
 <?php if (Alerts::pushOn()): ?>
     <div class="card mb-4" id="push-card" hidden data-api="<?= e(url('parent/push.php')) ?>" data-csrf="<?= e(csrf_token()) ?>"
-         data-key="<?= e(WebPush::publicKey()) ?>" data-sw="<?= e(url('sw.js')) ?>">
+         data-key="<?= e(WebPush::publicKey()) ?>" data-sw="<?= e(asset('sw.js')) ?>">
         <div class="card-body d-flex flex-wrap align-items-center gap-3">
             <div class="icon-bubble teal"><i class="bi bi-phone-vibrate" aria-hidden="true"></i></div>
             <div class="flex-grow-1" style="min-width: 14rem">

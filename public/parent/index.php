@@ -78,7 +78,7 @@ require APP_ROOT . '/templates/header.php';
 
 <?php if (Alerts::pushOn() && $children): ?>
     <div class="alert alert-info d-flex align-items-center gap-2" id="push-hint" hidden data-api="<?= e(url('parent/push.php')) ?>"
-         data-csrf="<?= e(csrf_token()) ?>" data-key="<?= e(WebPush::publicKey()) ?>" data-sw="<?= e(url('sw.js')) ?>">
+         data-csrf="<?= e(csrf_token()) ?>" data-key="<?= e(WebPush::publicKey()) ?>" data-sw="<?= e(asset('sw.js')) ?>">
         <i class="bi bi-phone-vibrate" aria-hidden="true"></i>
         <div class="flex-grow-1">Get a pop-up on this phone when your child arrives at school, is late or absent. Free.
             <a class="fw-semibold" href="<?= e(url('parent/notifications.php')) ?>">Turn on alerts</a></div>

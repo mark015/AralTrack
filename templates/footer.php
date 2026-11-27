@@ -30,7 +30,7 @@
 <?php if (is_file(APP_ROOT . '/public/sw.js')): ?>
     <script>
         // Installable app: register the service worker, and show "Install app" when the browser offers it.
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('<?= e(url('sw.js')) ?>').catch(function () {}); }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('<?= e(asset('sw.js')) ?>').catch(function () {}); }
         (function () {
             var prompt = null;
             var link = document.querySelector('[data-install-app]');
