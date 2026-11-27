@@ -10,6 +10,7 @@
 /storage/photos/*
 /storage/backups/*
 /storage/mail/*
+/storage/alerts-sweep
 !/storage/*/.gitkeep
 
 # Local and editor files

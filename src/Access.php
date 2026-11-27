@@ -20,6 +20,7 @@ final class Access
         'materials'    => ['Class materials', 'folder2-open', 'Teachers can\'t post materials, and learners can\'t see them.'],
         'requests'     => ['Document requests', 'file-earmark-text', 'Learners and parents can\'t request documents. The registrar can still see earlier requests.'],
         'news'         => ['News & calendar', 'megaphone', 'Announcements and the calendar are hidden, and parents aren\'t notified of new announcements.'],
+        'gate'         => ['Gate attendance', 'door-open', 'The gate scanner is closed, and parents get no "arrived at school" or "left school" alerts.'],
     ];
 
     /** Finer grading switches (only matter while Grading is on): key => [label, what it does] */
@@ -121,7 +122,7 @@ final class Access
         ],
         'parent' => [
             'grades'     => 'Report card (see grades)',
-            'attendance' => 'See attendance and get absence/late notifications',
+            'attendance' => 'See attendance and get attendance alerts (gate, late, absent)',
             'excuses'    => 'Send excuse letters',
             'messages'   => 'Messages with teachers',
             'requests'   => 'Request documents',

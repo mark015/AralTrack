@@ -4,10 +4,11 @@ A school portal for Grade 11 and 12 learners, their parents, subject teachers an
 serve **many schools** (each with its own separate data), run by a **platform owner**; see *Many schools* below.
 
 - **Subject teachers** keep a DepEd **class record** (Written Works, Performance Tasks, Quarterly Assessment), upload or type quarterly grades, take **class attendance by scanning learners' QR ID cards**, and post class materials.
-- **Parents** have their own accounts. They see each child's attendance in every class, the report card, school news and the calendar. They can send **excuse letters**, **message teachers** and **request documents**. **Notifications** appear inside the portal only (no email, no SMS).
+- **Parents** have their own accounts. They see each child's attendance in every class, the report card, school news and the calendar. They can send **excuse letters**, **message teachers** and **request documents**. **Notifications** appear in the portal and pop up on the parent's phone when they turn on **phone alerts** (free); the school can also send **text messages (SMS)** with its own SMS account.
 - **Learners** sign in with their **LRN** (by default). They see their home page, report card, class schedule, subjects with materials and their scores, and can request documents.
 - **Advisers** see their section's attendance, review excuse letters, rate observed values and print SF9 report cards.
 - The **registrar (admin)** sets up the school year, sections, subjects, staff, parents and learners; prints QR IDs, DepEd forms and certificates; and handles grade deadlines, change requests, the honor roll, the year-end rollover and backups.
+- **Gate attendance:** a **gate guard** (or the registrar) scans learners' ID cards at the school entrance with a phone or tablet. Parents are told at once when their child arrives (or arrives late) and leaves.
 - The **principal** sees school reports and all records, and approves grade changes. A **guidance counselor** sees learner profiles, at-risk learners and excuse letters.
 - The **Super Admin** controls the whole portal: turns parts of it on or off (attendance, grading, messages, …), decides who can sign in (teachers & staff, learners, parents), puts the portal in maintenance mode, controls each person's access, and sees every sign-in and every change.
 
@@ -222,6 +223,35 @@ before became workspace 1.
 - **Parents:** *My data* (menu under their name) downloads their own data (JSON) and deletes their account at that
   school (name, sign-in and links removed; messages and letters stay with the school as "Deleted parent").
 
+## Gate attendance and alerts to parents
+
+- **Gate scanner** (`gate/index.php`): a phone or tablet at the entrance (camera, or a USB QR scanner; an LRN can be
+  typed too). *Auto* records arriving, or leaving when the learner already came in (leaving counts 30 minutes after
+  arriving at the earliest); *Arriving* and *Leaving* fix the direction, e.g. at dismissal. The same card within
+  2 minutes is ignored. Arrivals after the school's time (Control → *Gate & SMS alerts*) are **late**.
+  Without internet the scanner keeps working: scans are saved on the device (learner id and time, never the card
+  code) and sent when the connection is back; the page itself opens offline too. Signing out deletes the saved page.
+- **Gate guard** accounts (Setup → Staff accounts, role *Gate guard*): can only use the scanner and the gate log, stay
+  signed in through the school day (`gate_idle_minutes`), and are **not** counted as paid staff accounts.
+- **Gate log** (`gate/log.php`, under Records): the scans of any day, *Not arrived* (with *Arrived now* for a learner
+  without a card), print. The registrar, principal, guidance and Super Admin see every section, an adviser their
+  advisory section. An Admin can remove a wrong scan (logged).
+- **Parents** see the gate times on their home page and on each day of the child's attendance, and get a
+  notification for each scan. Gate attendance is a part of the portal the Super Admin can turn off (Control panel).
+- **Phone alerts** (web push, free): every parent notification also pops up on the parent's phone. Parents turn them on
+  under *Notifications → Turn on alerts on this phone* (Chrome, Edge, Firefox; Safari on iPhone after *Add to Home
+  Screen*). The server makes its own keys on first use (`platform_settings`), and only contacts the browsers' push
+  services. The Super Admin can turn phone alerts off for the school.
+- **Text messages (SMS)**, Control → *Gate & SMS alerts* (Super Admin): off until turned on. Choose **Test mode**
+  (texts are only listed) or **Semaphore** with the school's own API key (kept on the server, never shown again, left
+  out of data downloads and the activity log), an optional sender name, and which events are texted: arriving
+  (once a day), leaving, late to a class, absent from a class. Texts go to parents who sign in with a mobile number
+  and, if ticked, the contact number on the learner record. A monthly limit protects the school's credits. *Send a
+  sample* and *Check my SMS credits* are on the same page, with the list of the latest texts and their status.
+- Alerts and texts are sent right after the page that caused them has answered, and any still waiting go out on the
+  next page load (at most once a minute). On hosting with cron, add `php /path/to/bin/send-alerts.php` every minute so
+  nothing waits when nobody is using the portal.
+
 ## Inviting staff, and a teacher joining a school
 
 - **Invite by email** (Staff accounts → *Invite by email*): the person gets a link (emailed when email is set up,
@@ -350,7 +380,8 @@ The root `.htaccess` sends every request to `public/`, so `config/`, `src/`, `da
 
 ```
 config/config.php     settings (database, defaults)
-database/             schema.sql, migrations/ (001–014), install.php, migrate.php, demo data
+database/             schema.sql, migrations/ (001–015), install.php, migrate.php, demo data
+bin/send-alerts.php   sends waiting phone alerts and text messages (for cron, optional)
 src/                  shared code: database, sign-in, attendance, notifications, report card, class record,
                       grading periods, at-risk, schedule, news, messages, document requests, DepEd forms, backups,
                       Super Admin switches and logs (Access.php), the current school (Workspace.php)
@@ -363,11 +394,13 @@ public/               the pages
   signup.php                  teacher sign-up (a workspace of their own)
   billing.php, paymongo-webhook.php   plan and payments (PayMongo)
   join.php                    accepting a school's invitation (and bringing your own classes)
+  gate/                       gate scanner, its JSON API, and the gate log
   staff/                      staff sign-in, email code, forgot/reset password, password change
   teacher/                    setup guide (teachers on their own), classes, grades, class record, attendance, materials, schedule, advisory, excuse letters, at-risk
   parent/                     parent sign-up, sign-in, privacy notice, my data, dashboard, child page, notifications, excuse letters
   admin/                      dashboard, learners, sections, subjects, staff, parents, records, reports, profiles
-  superadmin/                 control panel, accounts & sign-in, one person's access, activity log, privacy & data
+  superadmin/                 control panel, accounts & sign-in, one person's access, activity log, privacy & data,
+                              gate & SMS alerts (alerts.php)
   platform/                   platform owner console: schools, demo requests, billing, backups
   print/                      SF9, SF10, certificates
   messages.php, requests.php, news.php, privacy.php, file.php

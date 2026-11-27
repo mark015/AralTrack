@@ -59,6 +59,7 @@ return [
     // Sign-out after this many minutes without any page load
     'student_idle_minutes' => 15,
     'staff_idle_minutes'   => 60,   // longer, so teachers don't lose a half-typed grade sheet
+    'gate_idle_minutes'    => 720,  // a Gate guard account on the gate phone stays signed in through the school day
     'parent_idle_minutes'  => 60,
 
     // Attendance is taken per subject class. A learner scanned more than this many

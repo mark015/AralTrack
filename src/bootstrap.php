@@ -35,6 +35,10 @@ require __DIR__ . '/PayMongo.php';
 require __DIR__ . '/Invites.php';
 require __DIR__ . '/WorkspaceMerge.php';
 require __DIR__ . '/Privacy.php';
+require __DIR__ . '/WebPush.php';
+require __DIR__ . '/Sms.php';
+require __DIR__ . '/Alerts.php';
+require __DIR__ . '/Gate.php';
 foreach (['Forms', 'FormSheets', 'Messages', 'DocumentRequests', 'ClassRecord', 'Backup'] as $optional) {
     if (is_file(__DIR__ . "/{$optional}.php")) {
         require __DIR__ . "/{$optional}.php";
@@ -97,6 +101,7 @@ if (is_post() && !defined('SKIP_CSRF')) { // only the PayMongo webhook skips it 
 }
 
 Attendance::finishStaleSessions();
+Alerts::sweep(); // phone alerts and texts still waiting are sent (at most once a minute)
 
 /**
  * Makes sure the database matches this version of the code. After new code arrives (for example an automatic

@@ -19,6 +19,7 @@ foreach ($children as &$child) {
         [$child['id'], $sy['id']]
     ) : null;
     $child['today'] = [];
+    $child['gate'] = Gate::available() ? (Gate::forStudent((int) $child['id'], $today, $today)[$today] ?? []) : null;
     $child['month'] = array_fill_keys(array_keys(ATTENDANCE_STATUSES), 0);
     if ($child['section']) {
         $child['today'] = array_reverse(Attendance::studentSessions((int) $child['id'], (int) $child['section']['id'], $today, $today));
@@ -75,6 +76,17 @@ require APP_ROOT . '/templates/header.php';
     </div>
 <?php endif; ?>
 
+<?php if (Alerts::pushOn() && $children): ?>
+    <div class="alert alert-info d-flex align-items-center gap-2" id="push-hint" hidden data-api="<?= e(url('parent/push.php')) ?>"
+         data-csrf="<?= e(csrf_token()) ?>" data-key="<?= e(WebPush::publicKey()) ?>" data-sw="<?= e(url('sw.js')) ?>">
+        <i class="bi bi-phone-vibrate" aria-hidden="true"></i>
+        <div class="flex-grow-1">Get a pop-up on this phone when your child arrives at school, is late or absent. Free.
+            <a class="fw-semibold" href="<?= e(url('parent/notifications.php')) ?>">Turn on alerts</a></div>
+        <button type="button" class="btn-close" data-push-dismiss aria-label="Don't show this again"></button>
+    </div>
+    <script src="<?= e(asset('assets/push.js')) ?>" defer></script>
+<?php endif; ?>
+
 <?php $newsViewer = 'families'; require APP_ROOT . '/templates/news-widget.php'; ?>
 
 <?php if (!$children): ?>
@@ -114,6 +126,18 @@ require APP_ROOT . '/templates/header.php';
                     </div>
 
                     <?php if ($attendanceOn): ?>
+                    <?php if ($child['gate'] !== null && $child['section']): ?>
+                        <div class="section-title mb-2">At the school gate today</div>
+                        <p class="small mb-3">
+                            <?php if (!$child['gate']): ?>
+                                <span class="text-secondary"><i class="bi bi-door-closed me-1"></i>Not scanned at the gate yet today.</span>
+                            <?php else: ?>
+                                <?php foreach ($child['gate'] as $g): ?>
+                                    <span class="text-nowrap me-2"><?= gate_badge($g['direction'], (bool) $g['late']) ?> <?= e(format_time($g['scanned_at'])) ?></span>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </p>
+                    <?php endif; ?>
                     <div class="section-title mb-2">Today's classes</div>
                     <?php if (!$child['today']): ?>
                         <p class="small text-secondary"><i class="bi bi-calendar-x me-1"></i>No class attendance taken yet today.</p>

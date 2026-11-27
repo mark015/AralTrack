@@ -64,6 +64,7 @@ final class News
                  SELECT id, NULL, 'announcement', ?, ? FROM parents p WHERE is_active = 1 AND p.workspace_id = ? AND " . Access::parentAllowedSql('news', 'p.id'),
                 ['New announcement: ' . mb_substr($title, 0, 400), 'news.php#a' . $id, ws()]
             );
+            Alerts::kick();
         }
         return $id;
     }

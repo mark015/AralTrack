@@ -209,7 +209,11 @@ function start_session(): void
     $now = time();
     $idle = $now - (int) ($_SESSION['last_activity'] ?? $now);
     $expired = false;
-    if (isset($_SESSION['staff']) && $idle > (int) config('staff_idle_minutes') * 60) {
+    // The gate phone stays signed in through the school day (a guard account can only scan and see the gate log)
+    $staffIdle = ($_SESSION['staff']['role'] ?? '') === 'guard'
+        ? max((int) config('staff_idle_minutes'), (int) (config('gate_idle_minutes') ?? 720))
+        : (int) config('staff_idle_minutes');
+    if (isset($_SESSION['staff']) && $idle > $staffIdle * 60) {
         unset($_SESSION['staff']);
         $expired = true;
     }
@@ -506,6 +510,14 @@ function attendance_badge(?string $status): string
     [$class, $icon] = ATTENDANCE_STYLE[$status] ?? ['text-bg-light border', 'circle'];
     return '<span class="badge ' . $class . '"><i class="bi bi-' . $icon . '" aria-hidden="true"></i>'
         . e(ATTENDANCE_STATUSES[$status] ?? 'Not yet') . '</span>';
+}
+
+/** "In" / "Out" badge of a gate scan (same look as assets/gate.js), plus "Late". */
+function gate_badge(string $direction, bool $late = false): string
+{
+    $in = $direction === 'in';
+    return '<span class="badge ' . ($in ? 'text-bg-success' : 'text-bg-secondary') . '"><i class="bi bi-' . ($in ? 'box-arrow-in-right' : 'box-arrow-right')
+        . '" aria-hidden="true"></i>' . ($in ? 'In' : 'Out') . '</span>' . ($late ? ' <span class="badge text-bg-warning">Late</span>' : '');
 }
 
 // ---------------------------------------------------------------- look and feel

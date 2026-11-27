@@ -150,7 +150,7 @@ require APP_ROOT . '/templates/header.php';
                 <h2 class="h6 mb-1"><i class="bi bi-grid me-2"></i>Parts of the system</h2>
                 <p class="small text-secondary">Off hides that part from teachers, learners and parents. The registrar can still see earlier records.</p>
                 <div class="switch-list">
-                    <?php foreach (Access::MODULES as $key => [$label, $icon, $off]): ?>
+                    <?php foreach (Access::MODULES as $key => [$label, $icon, $off]): if ($key === 'gate' && Workspace::isSolo()) continue; // no gate for a teacher on their own ?>
                         <?= $switch('module_' . $key, $modules['module_' . $key] === '1', $label, 'When off: ' . $off, $icon) ?>
                         <?php if ($key === 'grading'): ?>
                             <?php foreach (Access::GRADING as $gKey => [$gLabel, $gHelp]): ?>

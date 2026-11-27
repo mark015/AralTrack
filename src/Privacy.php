@@ -95,6 +95,9 @@ final class Privacy
             'message_threads'          => ['message_threads', $own, []],
             'messages'                 => ['messages', "t.thread_id IN (SELECT id FROM message_threads WHERE workspace_id = {$w})", []],
             'parent_notifications'     => ['parent_notifications', "t.parent_id IN ({$parents})", []],
+            'gate_scans'               => ['gate_logs', $own, []],
+            'phone_alert_devices'      => ['push_subscriptions', $own, ['endpoint', 'endpoint_hash', 'p256dh', 'auth']],
+            'text_messages'            => ['sms_messages', $own, []],
             'class_materials'          => ['class_posts', $own, []],
             'announcements'            => ['announcements', $own, []],
             'calendar'                 => ['calendar_events', $own, []],
@@ -139,6 +142,9 @@ final class Privacy
             $columns = null;
             $rows = 0;
             while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
+                if ($table === 'settings' && in_array($row['name'], Sms::SECRET_SETTINGS, true)) {
+                    continue; // e.g. the SMS API key
+                }
                 foreach (array_merge(self::SECRET_COLUMNS, $skip) as $secret) {
                     unset($row[$secret]);
                 }
@@ -260,6 +266,8 @@ final class Privacy
                 [$parentId]
             ),
             'notifications' => db_all('SELECT type, message, created_at, read_at FROM parent_notifications WHERE parent_id = ? ORDER BY id', [$parentId]),
+            'phones_with_alerts' => db_all('SELECT device, created_at, last_sent_at FROM push_subscriptions WHERE parent_id = ? ORDER BY id', [$parentId]),
+            'text_messages' => db_all("SELECT number, message, status, created_at, sent_at FROM sms_messages WHERE parent_id = ? AND event <> 'sample' ORDER BY id", [$parentId]),
             'messages' => db_all(
                 'SELECT t.subject, m.sender_type, m.body, m.created_at FROM message_threads t JOIN messages m ON m.thread_id = t.id WHERE t.parent_id = ? ORDER BY m.id',
                 [$parentId]
@@ -291,6 +299,9 @@ final class Privacy
             );
             db_exec('DELETE FROM parent_students WHERE parent_id = ?', [$parentId]);
             db_exec('DELETE FROM parent_notifications WHERE parent_id = ?', [$parentId]);
+            db_exec('DELETE FROM push_subscriptions WHERE parent_id = ?', [$parentId]);
+            // The school's list of texts keeps that a text was sent, but not to whom
+            db_exec("UPDATE sms_messages SET parent_id = NULL, number = 'deleted' WHERE parent_id = ?", [$parentId]);
             db_exec("DELETE FROM access_blocks WHERE account_type = 'parent' AND account_id = ?", [$parentId]);
             db_exec("DELETE FROM login_events WHERE account_type = 'parent' AND account_id = ?", [$parentId]);
             $pdo->commit();

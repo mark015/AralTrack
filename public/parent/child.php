@@ -57,6 +57,12 @@ if ($tab === 'grades') {
     foreach ($sessions as $s) {
         $byDate[$s['session_date']][] = $s;
     }
+    // Arriving at and leaving school (gate scans), shown on the same days
+    $gateDays = $section && Gate::available() ? Gate::forStudent($childId, $from, $to) : [];
+    foreach (array_keys($gateDays) as $day) {
+        $byDate[$day] ??= [];
+    }
+    krsort($byDate);
     $totals = $section ? ReportCard::build($childId)['attendance'] : [];
 }
 require APP_ROOT . '/templates/header.php';
@@ -115,12 +121,22 @@ require APP_ROOT . '/templates/header.php';
         </div>
 
         <?php if (!$byDate): ?>
-            <p class="text-secondary">No class attendance recorded in <?= e(date('F Y', strtotime($from))) ?>.</p>
+            <p class="text-secondary">No attendance recorded in <?= e(date('F Y', strtotime($from))) ?>.</p>
         <?php endif; ?>
         <?php foreach ($byDate as $date => $daySessions): ?>
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold"><?= e(date('l, F j', strtotime($date))) ?></div>
                 <ul class="list-group list-group-flush">
+                    <?php if (isset($gateDays[$date])): ?>
+                        <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
+                            <span><i class="bi bi-door-open me-1 text-secondary" aria-hidden="true"></i>School gate</span>
+                            <span class="text-end">
+                                <?php foreach ($gateDays[$date] as $g): ?>
+                                    <span class="text-nowrap ms-2"><?= gate_badge($g['direction'], (bool) $g['late']) ?> <span class="small text-secondary"><?= e(format_time($g['scanned_at'])) ?></span></span>
+                                <?php endforeach; ?>
+                            </span>
+                        </li>
+                    <?php endif; ?>
                     <?php foreach (array_reverse($daySessions) as $s): ?>
                         <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
                             <span><span class="text-secondary"><?= e(format_time($s['starts_at'])) ?></span> · <?= e($s['subject_name']) ?></span>

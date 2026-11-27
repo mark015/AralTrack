@@ -8,6 +8,7 @@
 const VERSION = 'sgp-static-v2';
 const SHELL = 'sgp-offline-shell-v1';
 const PAGES = 'sgp-pages-v1';
+const GATE = 'sgp-gate-v1'; // the gate scanner page, to open it without internet (deleted when signing out)
 const scope = self.registration.scope;
 const OFFLINE = new URL('offline.html', scope).href;
 const ATTENDANCE = new URL('offline-attendance.html', scope).href;
@@ -41,7 +42,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys()
-            .then((keys) => Promise.all(keys.filter((key) => ![VERSION, SHELL, PAGES].includes(key)).map((key) => caches.delete(key))))
+            .then((keys) => Promise.all(keys.filter((key) => ![VERSION, SHELL, PAGES, GATE].includes(key)).map((key) => caches.delete(key))))
             .then(() => self.clients.claim())
     );
 });
@@ -120,9 +121,10 @@ self.addEventListener('fetch', (event) => {
 
     // Signing out: delete the saved pages (the sign-out itself goes to the server as usual).
     if (request.method === 'POST' && url.pathname.endsWith('logout.php')) {
-        event.waitUntil(caches.delete(PAGES));
+        event.waitUntil(Promise.all([caches.delete(PAGES), caches.delete(GATE)]));
         return;
     }
+    const gatePage = url.pathname === new URL('gate/index.php', scope).pathname;
     if (request.method !== 'GET') return;
 
     // Pages always come from the server. Without a connection: the offline attendance page, the saved copy of
@@ -133,12 +135,20 @@ self.addEventListener('fetch', (event) => {
             fetch(request)
                 .then(async (response) => {
                     if (isAttendance) await refreshShell(request, response);
-                    else if (response.headers.get('X-Offline-Save')) event.waitUntil(keepPage(request.url, response.clone()).catch(() => {}));
+                    else if (gatePage && response.ok && response.headers.get('X-Gate-Page')) {
+                        const copy = response.clone();
+                        event.waitUntil(caches.open(GATE).then((cache) => cache.put(url.origin + url.pathname, copy)).catch(() => {}));
+                    } else if (response.headers.get('X-Offline-Save')) event.waitUntil(keepPage(request.url, response.clone()).catch(() => {}));
                     return response;
                 })
                 .catch(async () => {
                     if (isAttendance) {
                         return (await caches.match(ATTENDANCE, {ignoreSearch: true})) || caches.match(OFFLINE);
+                    }
+                    // The gate scanner keeps working without internet (it saves scans on the device)
+                    if (gatePage) {
+                        const kept = await caches.match(url.origin + url.pathname, {cacheName: GATE});
+                        if (kept) return kept;
                     }
                     // A teacher's attendance page without internet: the offline attendance page, on that class
                     const offline = attendanceFor(url);
@@ -171,4 +181,40 @@ self.addEventListener('fetch', (event) => {
             return cached || network;
         }));
     }
+});
+
+// ---------------------------------------------------------------- phone alerts (web push, see src/WebPush.php)
+
+self.addEventListener('push', (event) => {
+    let data = {};
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (e) {
+        data = {body: event.data ? event.data.text() : ''};
+    }
+    const target = new URL(data.url || '', scope);
+    event.waitUntil(self.registration.showNotification(data.title || 'AralTrack', {
+        body: data.body || '',
+        icon: new URL('assets/icons/icon-192.png', scope).href,
+        badge: new URL('assets/icons/icon-192.png', scope).href,
+        tag: data.tag || undefined,
+        data: {url: target.origin === self.location.origin ? target.href : scope},
+    }));
+});
+
+// Tapping an alert opens the page it is about (or brings the open app to it)
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const url = (event.notification.data && event.notification.data.url) || scope;
+    event.waitUntil(self.clients.matchAll({type: 'window', includeUncontrolled: true}).then((windows) => {
+        for (const client of windows) {
+            if (client.url === url && 'focus' in client) return client.focus();
+        }
+        for (const client of windows) {
+            if (new URL(client.url).origin === self.location.origin && 'navigate' in client) {
+                return client.navigate(url).then((c) => (c ? c.focus() : self.clients.openWindow(url))).catch(() => self.clients.openWindow(url));
+            }
+        }
+        return self.clients.openWindow(url);
+    }));
 });

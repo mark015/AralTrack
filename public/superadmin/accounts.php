@@ -140,7 +140,7 @@ switch ($type) {
         $onCol = 'u.is_active = 1';
         $lastCol = 'u.last_login_at';
         $keyCol = 'LOWER(u.username)';
-        $order = "FIELD(u.role, 'superadmin', 'admin', 'principal', 'guidance', 'teacher'), u.full_name";
+        $order = "FIELD(u.role, 'superadmin', 'admin', 'principal', 'guidance', 'teacher', 'guard'), u.full_name";
         break;
     case 'parent':
         $base = 'FROM parents p';

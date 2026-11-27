@@ -2,8 +2,9 @@
 declare(strict_types=1);
 
 /**
- * Notifications shown inside the parent portal only (no email, no SMS).
- * Each one goes to every parent linked to the learner.
+ * Notifications for parents: shown in the parent portal, and sent to the parent's phone as an alert when they
+ * turned alerts on (Alerts, web push). Gate scans, lates and absences can also be texted (Sms), when the school
+ * turned text messages on. Each one goes to every parent linked to the learner.
  */
 final class Notifications
 {
@@ -20,6 +21,22 @@ final class Notifications
             format_time($session['starts_at'])
         );
         self::toParents((int) $student['id'], 'late', $message, self::attendanceLink((int) $student['id'], $session['session_date']));
+        Sms::forLearner($student, 'late', sprintf(
+            '%s was late to %s: arrived %s (class started %s).',
+            $student['first_name'] . ' ' . $student['last_name'],
+            $session['class']['subject_name'],
+            date('g:i A', $scannedAt),
+            format_time($session['starts_at'])
+        ), 'late:' . $session['id'] . ':' . $student['id']);
+    }
+
+    /** A learner scanned in or out at the school gate. */
+    public static function gate(array $student, string $direction, string $message, int $at): void
+    {
+        if (!Access::on('gate')) {
+            return;
+        }
+        self::toParents((int) $student['id'], $direction === 'in' ? 'arrived' : 'left', $message, self::attendanceLink((int) $student['id'], date('Y-m-d', $at)));
     }
 
     public static function changed(array $student, array $session, ?string $old, string $new, string $note): void
@@ -63,6 +80,21 @@ final class Notifications
                 $session['id'],
             ]
         );
+        Alerts::kick();
+        if (Sms::sends('absent')) {
+            $absent = db_all(
+                "SELECT st.* FROM session_attendance sa JOIN students st ON st.id = sa.student_id WHERE sa.session_id = ? AND sa.status = 'absent'",
+                [$session['id']]
+            );
+            foreach ($absent as $student) {
+                Sms::forLearner($student, 'absent', sprintf(
+                    '%s was marked absent in %s (%s).',
+                    $student['first_name'] . ' ' . $student['last_name'],
+                    $session['class']['subject_name'],
+                    date('M j, g:i A', strtotime($session['starts_at']))
+                ), 'absent:' . $session['id'] . ':' . $student['id']);
+            }
+        }
     }
 
     /** When a teacher publishes a quarter: parents of learners who have a grade in it. */
@@ -85,6 +117,7 @@ final class Notifications
                 $quarter,
             ]
         );
+        Alerts::kick();
     }
 
     public static function unreadCount(int $parentId): int
@@ -95,7 +128,7 @@ final class Notifications
     public static function toParents(int $studentId, string $type, string $message, string $link): void
     {
         // A parent who has the matching part turned off (Super Admin → per person) doesn't get it.
-        $part = ['late' => 'attendance', 'changed' => 'attendance', 'absent' => 'attendance', 'grades' => 'grades',
+        $part = ['late' => 'attendance', 'changed' => 'attendance', 'absent' => 'attendance', 'arrived' => 'attendance', 'left' => 'attendance', 'grades' => 'grades',
             'announcement' => 'news', 'excuse' => 'excuses', 'request' => 'requests', 'message' => 'messages'][$type] ?? null;
         db_exec(
             'INSERT INTO parent_notifications (parent_id, student_id, type, message, link)
@@ -103,6 +136,7 @@ final class Notifications
                 . ($part ? ' AND ' . Access::parentAllowedSql($part, 'parent_id') : ''),
             [$type, $message, $link, $studentId]
         );
+        Alerts::kick();
     }
 
     private static function attendanceLink(int $studentId, string $date): string

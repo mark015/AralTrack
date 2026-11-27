@@ -126,7 +126,8 @@ final class Billing
     /** Staff accounts a school pays for (active accounts, at least 1). */
     public static function seats(int $workspaceId): int
     {
-        return max(1, (int) db_value('SELECT COUNT(*) FROM users WHERE workspace_id = ? AND is_active = 1', [$workspaceId]));
+        // Gate guard accounts are free: they only scan cards at the gate
+        return max(1, (int) db_value("SELECT COUNT(*) FROM users WHERE workspace_id = ? AND is_active = 1 AND role <> 'guard'", [$workspaceId]));
     }
 
     /**

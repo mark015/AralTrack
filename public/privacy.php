@@ -23,8 +23,8 @@ require APP_ROOT . '/templates/header.php';
 
                 <h2 class="h5 mt-4">What we keep</h2>
                 <ul>
-                    <li><strong>Learners:</strong> LRN, name, sex, birthdate, section, grades, class attendance (including arrival times), excuse letters, and the details the registrar enters on the learner record.</li>
-                    <li><strong>Parents and guardians:</strong> name, mobile number or email used to sign in, which learners are linked to the account, and messages sent through the portal.</li>
+                    <li><strong>Learners:</strong> LRN, name, sex, birthdate, section, grades, class attendance (including arrival times), the times they enter and leave through the school gate (when the school scans ID cards at the gate), excuse letters, and the details the registrar enters on the learner record.</li>
+                    <li><strong>Parents and guardians:</strong> name, mobile number or email used to sign in, which learners are linked to the account, messages sent through the portal, the phones where they turned on alerts, and the text messages the school sent them.</li>
                     <li><strong>Staff:</strong> name, username, and the changes they make (for example, every grade change is recorded).</li>
                 </ul>
 
@@ -38,6 +38,9 @@ require APP_ROOT . '/templates/header.php';
                     <li>Teachers see the learners in their classes; advisers see their advisory section; the registrar, principal and guidance counselor see the school's records.</li>
                 </ul>
                 <p>The school does not sell or share this information with outside parties, except when required by DepEd or by law.</p>
+                <p>To tell parents about attendance quickly, alerts pass through the phone's alert service (Google, Apple, Mozilla or Microsoft, encrypted so they can't read it)
+                    and, when the school sends text messages, through its SMS provider, which receives the parent's mobile number and the text.
+                    A parent can turn alerts off on their phone at any time (Notifications).</p>
 
                 <h2 class="h5 mt-4">How it is protected</h2>
                 <p>Passwords are stored encrypted, sign-in is locked after repeated failed tries, every page checks who is allowed to see it, and uploaded files are kept outside the public website.</p>

@@ -29,7 +29,11 @@ const STAFF_ROLES = [
     'teacher'   => 'Teacher',
     'principal' => 'Principal',
     'guidance'  => 'Guidance counselor',
+    'guard'     => 'Gate guard',
 ];
+
+/** The only pages a gate guard account can open (paths under public/) */
+const GUARD_PAGES = ['gate/index.php', 'gate/api.php', 'gate/log.php', 'staff/password.php', 'staff/logout.php', 'logout.php', 'switch.php'];
 
 /** Admin (registrar) or Super Admin: both run the school's records. */
 function is_admin(array $staff): bool
@@ -48,6 +52,7 @@ function home_for(array $staff): string
         'admin' => 'admin/index.php',
         'principal' => is_file(APP_ROOT . '/public/admin/reports.php') ? 'admin/reports.php' : 'teacher/index.php',
         'guidance' => 'teacher/at-risk.php',
+        'guard' => 'gate/index.php',
         default => 'teacher/index.php',
     };
 }
@@ -86,6 +91,9 @@ function require_staff(string ...$roles): array
     }
     if ($roles && $user['role'] !== 'superadmin' && !in_array($user['role'], $roles, true)) {
         abort(403, 'Your account cannot open this page.');
+    }
+    if ($user['role'] === 'guard' && !in_array(OfflinePages::currentPage(), GUARD_PAGES, true)) {
+        abort(403, 'A gate guard account can only use the gate scanner and the gate log.');
     }
     Billing::guardWrite(OfflinePages::currentPage()); // a school whose subscription ended can't change anything
     return $_SESSION['staff'];

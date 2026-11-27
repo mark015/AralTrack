@@ -20,6 +20,7 @@ final class WorkspaceMerge
         ['observed_values', 'student_id'], ['report_acknowledgements', 'student_id'], ['parent_students', 'student_id'],
         ['parent_notifications', 'student_id'], ['excuse_letters', 'student_id'], ['document_requests', 'student_id'],
         ['interventions', 'student_id'], ['grade_change_requests', 'student_id'], ['grade_history', 'student_id'], ['message_threads', 'student_id'],
+        ['gate_logs', 'student_id'], ['sms_messages', 'student_id'],
     ];
     /** Tables that point to a class, with the column. */
     private const CLASS_REFS = [
@@ -31,10 +32,11 @@ final class WorkspaceMerge
     /** Tables that point to a parent, with the column. */
     private const PARENT_REFS = [
         ['parent_students', 'parent_id'], ['parent_notifications', 'parent_id'], ['message_threads', 'parent_id'],
-        ['excuse_letters', 'parent_id'], ['report_acknowledgements', 'parent_id'],
+        ['excuse_letters', 'parent_id'], ['report_acknowledgements', 'parent_id'], ['push_subscriptions', 'parent_id'], ['sms_messages', 'parent_id'],
     ];
     /** Records of the teacher's workspace that move into the school as they are (after the ids above are updated). */
-    private const MOVE_TABLES = ['class_sessions', 'class_posts', 'grade_history', 'grade_change_requests', 'interventions', 'excuse_letters', 'document_requests', 'message_threads'];
+    private const MOVE_TABLES = ['class_sessions', 'class_posts', 'grade_history', 'grade_change_requests', 'interventions', 'excuse_letters', 'document_requests', 'message_threads',
+        'gate_logs', 'sms_messages', 'push_subscriptions'];
 
     /**
      * @param array<int, int> $sectionChoices teacher's section id => school section id (0 = bring it as a new section)

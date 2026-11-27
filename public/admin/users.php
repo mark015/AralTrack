@@ -209,6 +209,7 @@ require APP_ROOT . '/templates/header.php';
                         <div class="form-text">
                             Teachers see only their classes and advisory. The principal sees reports and all records and can approve grade changes.
                             Guidance counselors see learner profiles, attendance, excuse letters and at-risk learners.
+                            A gate guard can only scan ID cards at the gate and see the gate log (free: not counted as a paid staff account).
                         </div>
                     </div>
                     <?php if (!$editing): ?>

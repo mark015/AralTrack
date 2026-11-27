@@ -65,6 +65,7 @@ final class Navigation
                 ['Billing', 'credit-card', 'billing.php'],
                 ['Learner & parent sign-in', 'person-lock', 'superadmin/accounts.php'],
                 ['Control panel', 'toggles', 'superadmin/index.php'],
+                ['Phone & SMS alerts', 'broadcast', 'superadmin/alerts.php'],
                 ['Privacy & data', 'shield-check', 'superadmin/privacy.php'],
             ]],
         ];
@@ -82,11 +83,14 @@ final class Navigation
         $requests = in_array($role, ['superadmin', 'admin', 'principal'], true) ? self::count(static fn () => DocumentRequests::pending()) : 0;
         $excusesOn = Access::can('excuses');
         $messagesOn = Access::can('messages');
+        $gateOn = Gate::available();
+        $gateLog = ['Gate log', 'door-open', 'gate/log.php', 'also' => ['gate/index.php'], 'show' => $gateOn];
 
         $teaching = [
             ['My classes', 'easel2', 'teacher/index.php', 'also' => ['teacher/class.php', 'teacher/upload.php', 'teacher/attendance.php', 'teacher/session.php', 'teacher/posts.php', 'teacher/schedule-edit.php', 'teacher/class-record.php']],
             ['My schedule', 'calendar-week', 'teacher/schedule.php'],
             $adviser ? ['My advisory', 'clipboard-heart', 'teacher/advisory.php', 'also' => ['teacher/values.php']] : null,
+            ($adviser && !$all) ? $gateLog : null,
             ($adviser || $all) ? ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses, 'show' => $excusesOn] : null,
             ['At-risk learners', 'exclamation-diamond', 'teacher/at-risk.php'],
             ['Messages', 'chat-dots', 'messages.php', 'badge' => $messages, 'show' => $messagesOn],
@@ -109,6 +113,7 @@ final class Navigation
             ['Parents', 'person-hearts', 'admin/parents.php', 'also' => ['admin/parent-edit.php']],
         ];
         $records = [
+            $gateLog,
             ['Grading periods & changes', 'calendar-check', 'admin/grading.php', 'badge' => $changes],
             ['Grade history', 'clock-history', 'admin/grade-history.php'],
             ['Honor roll', 'award', 'admin/honors.php'],
@@ -128,6 +133,7 @@ final class Navigation
                     ['Control panel', 'toggles', 'superadmin/index.php'],
                     ['Accounts & sign-in', 'person-lock', 'superadmin/accounts.php'],
                     ['Activity log', 'journal-text', 'superadmin/activity.php'],
+                    ['Gate & SMS alerts', 'broadcast', 'superadmin/alerts.php'],
                     ['Privacy & data', 'shield-check', 'superadmin/privacy.php'],
                     ...$setup,
                 ]],
@@ -149,8 +155,13 @@ final class Navigation
                 ['News', 'megaphone', 'admin/announcements.php', 'also' => ['news.php']],
                 $teaches ? $teachingMenu : $messagesItem,
             ],
+            'guard' => [
+                ['Gate scanner', 'qr-code-scan', 'gate/index.php', 'show' => $gateOn],
+                ['Gate log', 'door-open', 'gate/log.php', 'show' => $gateOn],
+            ],
             'guidance' => [
                 ['At-risk learners', 'exclamation-diamond', 'teacher/at-risk.php'],
+                $gateLog,
                 ['Excuse letters', 'envelope-paper', 'teacher/excuses.php', 'badge' => $excuses, 'show' => $excusesOn],
                 ['Learners', 'people', 'admin/profiles.php'],
                 $messagesItem,
